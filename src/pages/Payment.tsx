@@ -1,0 +1,92 @@
+import { useState } from "react";
+import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
+import { Lock, ArrowLeft } from "lucide-react";
+import { creditPacks, paymentMethods } from "../data/creditPacks";
+import { useApp } from "../context/AppContext";
+
+export function Payment() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { buyPack } = useApp();
+  const [method, setMethod] = useState<string>("mtn");
+  const [processing, setProcessing] = useState(false);
+
+  const pack = creditPacks.find((p) => p.id === params.get("pack"));
+  if (!pack) return <Navigate to="/credits/achat" replace />;
+
+  const handlePay = () => {
+    setProcessing(true);
+    setTimeout(() => {
+      buyPack(pack.credits, pack.price, pack.name);
+      navigate(`/credits/succes?pack=${pack.id}`);
+    }, 900);
+  };
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
+      <Link to="/credits/achat" className="inline-flex items-center gap-2 text-sm font-medium text-brand-navy mb-6">
+        <ArrowLeft size={16} /> Retour
+      </Link>
+
+      <div className="rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+        <h1 className="font-display text-xl font-bold text-brand-navy mb-6">Paiement</h1>
+
+        <h2 className="text-sm font-semibold text-gray-500 mb-2">Récapitulatif</h2>
+        <div className="rounded-xl bg-gray-50 divide-y divide-gray-200 mb-6 text-sm">
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-gray-500">Pack choisi</span>
+            <span className="font-medium text-brand-navy">{pack.credits} crédits</span>
+          </div>
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-gray-500">Montant</span>
+            <span className="font-medium text-brand-navy">{pack.price.toLocaleString("fr-FR")} FCFA</span>
+          </div>
+        </div>
+
+        <h2 className="text-sm font-semibold text-gray-500 mb-3">Choisissez votre méthode de paiement</h2>
+        <div className="space-y-3 mb-6">
+          {paymentMethods.map((m) => (
+            <label
+              key={m.id}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 cursor-pointer transition-colors ${
+                method === m.id ? "border-brand-blue bg-brand-blue-light" : "border-gray-200"
+              }`}
+            >
+              <input
+                type="radio"
+                name="method"
+                checked={method === m.id}
+                onChange={() => setMethod(m.id)}
+                className="accent-brand-blue h-4 w-4"
+              />
+              <PaymentIcon id={m.id} />
+              <span className="font-medium text-brand-navy text-sm">{m.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <button
+          onClick={handlePay}
+          disabled={processing}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-blue py-3.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+        >
+          <Lock size={15} /> {processing ? "Traitement en cours..." : "Paiement 100% sécurisé"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentIcon({ id }: { id: string }) {
+  const colors: Record<string, string> = {
+    mtn: "bg-yellow-400 text-black",
+    orange: "bg-orange-500 text-white",
+    visa: "bg-blue-800 text-white",
+  };
+  const label: Record<string, string> = { mtn: "MTN", orange: "🍊", visa: "VISA" };
+  return (
+    <span className={`flex h-8 w-12 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${colors[id]}`}>
+      {label[id]}
+    </span>
+  );
+}
