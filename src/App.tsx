@@ -8,6 +8,7 @@ import { AccommodationDetails } from "./pages/AccommodationDetails";
 import { Favoris } from "./pages/Favoris";
 import { BuyCredits } from "./pages/BuyCredits";
 import { Payment } from "./pages/Payment";
+import { PaymentCallback } from "./pages/PaymentCallback";
 import { PaymentSuccess } from "./pages/PaymentSuccess";
 import { TransactionHistory } from "./pages/TransactionHistory";
 import { Profile } from "./pages/Profile";
@@ -104,6 +105,7 @@ function App() {
         <Route path="/profil" element={<Profile />} />
         <Route path="/credits/achat" element={<BuyCredits />} />
         <Route path="/credits/paiement" element={<Payment />} />
+        <Route path="/credits/paiement/retour" element={<PaymentCallback />} />
         <Route path="/credits/succes" element={<PaymentSuccess />} />
         <Route path="/credits/historique" element={<TransactionHistory />} />
         <Route path="/parrainage" element={<Parrainage />} />

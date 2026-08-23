@@ -1,25 +1,44 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
+import { useSearchParams, Navigate, Link } from "react-router-dom";
 import { Lock, ArrowLeft } from "lucide-react";
 import { creditPacks, paymentMethods } from "../data/creditPacks";
 import { useApp } from "../context/AppContext";
 
 export function Payment() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
-  const { buyPack } = useApp();
+  const { user } = useApp();
   const [method, setMethod] = useState<string>("mtn");
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
 
   const pack = creditPacks.find((p) => p.id === params.get("pack"));
   if (!pack) return <Navigate to="/credits/achat" replace />;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setProcessing(true);
-    setTimeout(() => {
-      buyPack(pack.credits, pack.price, pack.name);
-      navigate(`/credits/succes?pack=${pack.id}`);
-    }, 900);
+    setError("");
+    try {
+      const res = await fetch("/api/notchpay/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packId: pack.id,
+          name: `${user.firstName} ${user.lastName}`.trim() || "Étudiant StudHome",
+          email: user.email,
+          phone: user.phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.authorizationUrl) {
+        setError(data.error || "Impossible d'initialiser le paiement pour le moment.");
+        setProcessing(false);
+        return;
+      }
+      window.location.href = data.authorizationUrl;
+    } catch {
+      setError("Impossible de contacter le service de paiement.");
+      setProcessing(false);
+    }
   };
 
   return (
@@ -43,7 +62,8 @@ export function Payment() {
           </div>
         </div>
 
-        <h2 className="text-sm font-semibold text-gray-500 mb-3">Choisissez votre méthode de paiement</h2>
+        <h2 className="text-sm font-semibold text-gray-500 mb-1">Choisissez votre méthode de paiement</h2>
+        <p className="text-xs text-gray-400 mb-3">Vous confirmerez le paiement sur la page sécurisée NotchPay.</p>
         <div className="space-y-3 mb-6">
           {paymentMethods.map((m) => (
             <label
@@ -65,12 +85,14 @@ export function Payment() {
           ))}
         </div>
 
+        {error && <p className="mb-3 text-sm text-red-500 text-center">{error}</p>}
+
         <button
           onClick={handlePay}
           disabled={processing}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-blue py-3.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
         >
-          <Lock size={15} /> {processing ? "Traitement en cours..." : "Paiement 100% sécurisé"}
+          <Lock size={15} /> {processing ? "Redirection en cours..." : "Paiement 100% sécurisé"}
         </button>
       </div>
     </div>
