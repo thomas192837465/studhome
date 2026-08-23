@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X } from "lucide-react";
-import { getListingById } from "../data/listings";
+import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap } from "lucide-react";
+import { useListings } from "../context/ListingsContext";
 import { useApp } from "../context/AppContext";
 import { MapPreview } from "../components/MapPreview";
 
@@ -28,13 +28,19 @@ function maskPhone(phone: string) {
 export function AccommodationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const listing = id ? getListingById(id) : undefined;
+  const { getListing, getListingsByOwner, recordView, adjustFavorite, recordUnlock } = useListings();
+  const listing = id ? getListing(id) : undefined;
   const { isAuthenticated, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
   const [activeImg, setActiveImg] = useState(0);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     setActiveImg(0);
+  }, [id]);
+
+  useEffect(() => {
+    if (id) recordView(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (!listing) {
@@ -50,6 +56,13 @@ export function AccommodationDetails() {
 
   const unlocked = isUnlocked(listing.id);
   const fav = isFavorite(listing.id);
+  const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
+
+  const handleToggleFavorite = () => {
+    if (!isAuthenticated) return;
+    toggleFavorite(listing.id);
+    adjustFavorite(listing.id, fav ? -1 : 1);
+  };
 
   const handleUnlock = () => {
     if (!isAuthenticated) {
@@ -59,6 +72,7 @@ export function AccommodationDetails() {
     if (unlocked) return;
     const ok = unlockListing(listing.id, listing.unlockCost, listing.city);
     if (ok) {
+      recordUnlock(listing.id);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4000);
     } else {
@@ -90,71 +104,75 @@ export function AccommodationDetails() {
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8">
         <div>
           <div className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-gray-100">
-            <img src={listing.gallery[activeImg]} alt={listing.title} className="h-full w-full object-cover" />
-            {listing.verified && (
-              <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-green-700">
-                <ShieldCheck size={13} /> Vérifié
-              </span>
+            {listing.gallery[activeImg] ? (
+              <img src={listing.gallery[activeImg]} alt={listing.title} className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">Aucune photo</div>
             )}
+            <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-green-700">
+              <ShieldCheck size={13} /> Vérifié
+            </span>
             <button
-              onClick={() => isAuthenticated && toggleFavorite(listing.id)}
+              onClick={handleToggleFavorite}
               className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95"
             >
               <Heart size={17} className={fav ? "fill-brand-blue text-brand-blue" : "text-brand-blue"} />
             </button>
-            <button
-              onClick={() => setActiveImg((i) => (i - 1 + listing.gallery.length) % listing.gallery.length)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => setActiveImg((i) => (i + 1) % listing.gallery.length)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
-            >
-              <ChevronRight size={16} />
-            </button>
+            {listing.gallery.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveImg((i) => (i - 1 + listing.gallery.length) % listing.gallery.length)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setActiveImg((i) => (i + 1) % listing.gallery.length)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </>
+            )}
           </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-3">
-            {listing.gallery.slice(0, 3).map((img, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveImg(i)}
-                className="aspect-square rounded-xl overflow-hidden bg-gray-100"
-              >
-                <img src={img} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
-            <button
-              onClick={() => setActiveImg(3)}
-              className="aspect-square rounded-xl bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-500"
-            >
-              +{unlocked ? "8" : "8"}
-            </button>
-          </div>
+          {listing.gallery.length > 1 && (
+            <div className="mt-3 grid grid-cols-4 gap-3">
+              {listing.gallery.slice(0, 4).map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImg(i)}
+                  className="aspect-square rounded-xl overflow-hidden bg-gray-100"
+                >
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-8">
             <h2 className="font-display text-lg font-bold text-brand-navy mb-2">Description</h2>
-            <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{listing.description}</p>
+            <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+              {listing.description || "Aucune description fournie."}
+            </p>
           </div>
 
-          <div className="mt-8">
-            <h2 className="font-display text-lg font-bold text-brand-navy mb-3">A proximité</h2>
-            <div className="rounded-xl border border-gray-100 overflow-hidden">
-              {listing.proximity.map((p, i) => (
-                <div
-                  key={p.name}
-                  className={`flex items-center justify-between px-4 py-3 text-sm ${
-                    i % 2 === 0 ? "bg-gray-50" : "bg-white"
-                  }`}
-                >
-                  <span className="text-gray-700">{p.name}</span>
-                  <span className="text-gray-500">{p.distance}</span>
-                </div>
-              ))}
+          {listing.universities.length > 0 && (
+            <div className="mt-8">
+              <h2 className="font-display text-lg font-bold text-brand-navy mb-3">Universités à proximité</h2>
+              <div className="rounded-xl border border-gray-100 overflow-hidden">
+                {listing.universities.map((u, i) => (
+                  <div
+                    key={u}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm ${i % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+                  >
+                    <GraduationCap size={15} className="text-brand-blue shrink-0" />
+                    <span className="text-gray-700">{u}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-8">
             <h2 className="font-display text-lg font-bold text-brand-navy mb-3 flex items-center gap-2">
@@ -176,22 +194,23 @@ export function AccommodationDetails() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h1 className="font-display text-xl font-bold text-brand-navy">{listing.title}</h1>
-            <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">📍 {listing.city}</p>
+            <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+              📍 {listing.city}, {listing.quartier}
+            </p>
             <p className="mt-3">
               <span className="font-display text-2xl font-bold text-brand-blue">
                 {listing.price.toLocaleString("fr-FR")} FCFA
               </span>{" "}
               <span className="text-gray-500 text-sm">/ {listing.period}</span>
             </p>
-            <span className="mt-1 inline-block rounded-full bg-brand-blue-light px-2.5 py-0.5 text-xs font-medium text-brand-blue">
-              Caution incluse
-            </span>
 
-            <ul className="mt-4 space-y-1.5 text-sm text-gray-600">
-              {listing.features.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
+            {listing.equipements.length > 0 && (
+              <ul className="mt-4 space-y-1.5 text-sm text-gray-600">
+                {listing.equipements.map((f) => (
+                  <li key={f}>• {f}</li>
+                ))}
+              </ul>
+            )}
 
             <button
               onClick={handleUnlock}
@@ -225,27 +244,27 @@ export function AccommodationDetails() {
             <h3 className="font-semibold text-brand-navy mb-3">Propriétaire</h3>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {listing.owner.avatarImg ? (
+                {listing.ownerAvatarImg ? (
                   <img
-                    src={listing.owner.avatarImg}
-                    alt={listing.owner.name}
+                    src={listing.ownerAvatarImg}
+                    alt={listing.ownerName}
                     className="h-11 w-11 rounded-full object-cover"
                   />
                 ) : (
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue font-bold">
-                    {listing.owner.name.charAt(0)}
+                    {listing.ownerName.charAt(0)}
                   </span>
                 )}
                 <div>
-                  <p className="font-semibold text-brand-navy">{listing.owner.name}</p>
+                  <p className="font-semibold text-brand-navy">{listing.ownerName}</p>
                   <p className="text-sm text-gray-500">
-                    {unlocked ? listing.owner.phone : maskPhone(listing.owner.phone)}
+                    {unlocked ? listing.ownerPhone : maskPhone(listing.ownerPhone)}
                   </p>
                 </div>
               </div>
               {unlocked ? (
                 <a
-                  href="https://wa.me/999999999"
+                  href={`https://wa.me/${listing.ownerPhone.replace(/\D/g, "")}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200"
@@ -260,16 +279,10 @@ export function AccommodationDetails() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-y-2 text-xs">
-              <p className="flex items-center gap-1 text-green-700">
-                <ShieldCheck size={13} /> Pièce d'identité vérifiée
+              <p className="text-gray-500">
+                Membre depuis : {new Date(listing.ownerMemberSince).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
               </p>
-              <p className="text-gray-500">Membre depuis : {listing.owner.memberSince}</p>
-              <p className="flex items-center gap-1 text-green-700">
-                <ShieldCheck size={13} /> Téléphone vérifié
-              </p>
-              <p className="text-gray-500">Logements publiés : {listing.owner.listingsCount}</p>
-              <p></p>
-              <p className="text-gray-500">Temps de réponse : {listing.owner.responseTime}</p>
+              <p className="text-gray-500">Logements publiés : {ownerListingsCount}</p>
             </div>
           </div>
 

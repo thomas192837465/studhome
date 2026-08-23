@@ -1,0 +1,74 @@
+export type ListingStatus = "En attente" | "Publiée" | "Modifications demandées" | "Refusée";
+
+export interface DailyStat {
+  date: string; // YYYY-MM-DD
+  views: number;
+  favorites: number;
+  unlocks: number;
+}
+
+export interface Listing {
+  id: string;
+  title: string;
+  type: string;
+  city: string;
+  quartier: string;
+  universities: string[];
+  price: number;
+  period: "mois" | "an";
+  description: string;
+  equipements: string[];
+  image: string;
+  gallery: string[];
+  status: ListingStatus;
+  submittedDate: string;
+  createdAt: string;
+  unlockCost: number;
+
+  ownerId: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerAvatarImg?: string;
+  ownerMemberSince: string;
+
+  modificationMessage?: string;
+  modificationReason?: string;
+
+  views: number;
+  favoritesCount: number;
+  unlocksCount: number;
+  lastStatsUpdate: string;
+  dailyStats: DailyStat[];
+}
+
+export interface ListingDraft {
+  type: string;
+  ville: string;
+  quartier: string;
+  universities: string[];
+  description: string;
+  equipements: string[];
+  photos: string[];
+  loyer: string;
+  charges: string[];
+  caution: string;
+  disponibleDate: string;
+}
+
+export const emptyDraft: ListingDraft = {
+  type: "",
+  ville: "",
+  quartier: "",
+  universities: [],
+  description: "",
+  equipements: [],
+  photos: [],
+  loyer: "",
+  charges: [],
+  caution: "1 mois",
+  disponibleDate: "",
+};
+
+export function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}

@@ -1,15 +1,18 @@
 import { Link } from "react-router-dom";
 import { Plus, ChevronRight } from "lucide-react";
 import { useOwner } from "../../context/OwnerContext";
-import { statusBadgeClass } from "./ownerUi";
+import { useListings } from "../../context/ListingsContext";
+import { listingStatusClass } from "../../data/listingStatus";
 
 export function OwnerDashboard() {
-  const { ownerUser, listings } = useOwner();
+  const { ownerUser } = useOwner();
+  const { getListingsByOwner } = useListings();
+  const listings = getListingsByOwner(ownerUser.phone);
   const firstName = ownerUser.fullName.split(" ")[0];
 
-  const enAttente = listings.filter((l) => l.status === "En attente de vérification").length;
+  const enAttente = listings.filter((l) => l.status === "En attente").length;
   const publiees = listings.filter((l) => l.status === "Publiée").length;
-  const contactsRecus = listings.reduce((sum, l) => sum + l.unlocks, 0);
+  const contactsRecus = listings.reduce((sum, l) => sum + l.unlocksCount, 0);
 
   return (
     <div className="p-6 sm:p-10">
@@ -31,36 +34,58 @@ export function OwnerDashboard() {
         <StatCard value={enAttente} label="" title="En attente" />
         <StatCard value={publiees} label="" title="Publiées" />
         <StatCard value={contactsRecus} label="Ce mois" title="Contacts reçus" />
-        <StatCard value="95%" label="Excellent" title="Taux de réponse" highlight />
+        <StatCard
+          value={listings.length ? `${Math.round((publiees / listings.length) * 100)}%` : "—"}
+          label={listings.length ? "Sur vos annonces" : "Aucune annonce"}
+          title="Taux de publication"
+          highlight
+        />
       </div>
 
       <h2 className="font-display text-lg font-bold text-brand-navy mb-4">Mes annonces</h2>
-      <div className="space-y-3">
-        {listings.map((l) => (
-          <Link
-            key={l.id}
-            to={`/proprietaire/annonces/${l.id}`}
-            className="flex items-center gap-4 rounded-2xl border border-gray-100 p-3 hover:shadow-sm transition-shadow"
-          >
-            <img src={l.image} alt={l.title} className="h-14 w-14 rounded-xl object-cover shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-brand-navy text-sm truncate">{l.title}</p>
-              <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / mois</p>
-              <p className="text-xs text-gray-400">Soumise le {l.submittedDate}</p>
-            </div>
-            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeClass(l.status)}`}>
-              {l.status}
-            </span>
-            <ChevronRight size={16} className="text-gray-300 shrink-0" />
+      {listings.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+          <p className="text-gray-500">Vous n'avez pas encore publié de logement.</p>
+          <Link to="/proprietaire/publier" className="mt-3 inline-block text-sm font-semibold text-brand-blue">
+            Publier mon premier logement →
           </Link>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {listings.map((l) => (
+            <Link
+              key={l.id}
+              to={`/proprietaire/annonces/${l.id}`}
+              className="flex items-center gap-4 rounded-2xl border border-gray-100 p-3 hover:shadow-sm transition-shadow"
+            >
+              {l.image ? (
+                <img src={l.image} alt={l.title} className="h-14 w-14 rounded-xl object-cover shrink-0" />
+              ) : (
+                <span className="h-14 w-14 rounded-xl bg-gray-100 shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-brand-navy text-sm truncate">{l.title}</p>
+                <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / mois</p>
+                <p className="text-xs text-gray-400">
+                  Soumise le {new Date(l.submittedDate).toLocaleDateString("fr-FR")}
+                </p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${listingStatusClass(l.status)}`}>
+                {l.status}
+              </span>
+              <ChevronRight size={16} className="text-gray-300 shrink-0" />
+            </Link>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-6 text-center">
-        <Link to="/proprietaire/annonces" className="text-sm font-semibold text-brand-blue">
-          Voir toutes mes annonces
-        </Link>
-      </div>
+      {listings.length > 0 && (
+        <div className="mt-6 text-center">
+          <Link to="/proprietaire/annonces" className="text-sm font-semibold text-brand-blue">
+            Voir toutes mes annonces
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

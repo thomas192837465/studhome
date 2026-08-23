@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Search } from "lucide-react";
-import { useAdminPortal } from "../../context/AdminPortalContext";
-import { listingStatusClass, useBasePath } from "./adminUi";
-import type { AdminListingStatus } from "../../data/adminTypes";
+import { useListings } from "../../context/ListingsContext";
+import { useBasePath } from "./adminUi";
+import { listingStatusClass } from "../../data/listingStatus";
+import type { ListingStatus } from "../../data/listingTypes";
 
-const statuses: (AdminListingStatus | "Tous les statuts")[] = [
+const statuses: (ListingStatus | "Tous les statuts")[] = [
   "Tous les statuts",
   "En attente",
   "Publiée",
@@ -14,14 +15,18 @@ const statuses: (AdminListingStatus | "Tous les statuts")[] = [
 ];
 
 export function AnnoncesEnAttente() {
-  const { listings } = useAdminPortal();
+  const { listings } = useListings();
   const base = useBasePath(useLocation().pathname);
   const [filter, setFilter] = useState<(typeof statuses)[number]>("Tous les statuts");
   const [search, setSearch] = useState("");
 
   const filtered = listings.filter((l) => {
     if (filter !== "Tous les statuts" && l.status !== filter) return false;
-    if (search && !l.title.toLowerCase().includes(search.toLowerCase()) && !l.owner.toLowerCase().includes(search.toLowerCase()))
+    if (
+      search &&
+      !l.title.toLowerCase().includes(search.toLowerCase()) &&
+      !l.ownerName.toLowerCase().includes(search.toLowerCase())
+    )
       return false;
     return true;
   });
@@ -71,13 +76,15 @@ export function AnnoncesEnAttente() {
           <tbody>
             {filtered.map((l) => (
               <tr key={l.id} className="border-b border-gray-50 last:border-0">
-                <td className="px-5 py-3.5 text-gray-500">#{l.id}</td>
+                <td className="px-5 py-3.5 text-gray-500">#{l.id.slice(-6)}</td>
                 <td className="px-5 py-3.5 text-brand-navy font-medium">{l.title}</td>
                 <td className="px-5 py-3.5 text-gray-600">
-                  {l.ville}, {l.quartier}
+                  {l.city}, {l.quartier}
                 </td>
-                <td className="px-5 py-3.5 text-gray-600">{l.owner}</td>
-                <td className="px-5 py-3.5 text-gray-500">{l.submitted}</td>
+                <td className="px-5 py-3.5 text-gray-600">{l.ownerName}</td>
+                <td className="px-5 py-3.5 text-gray-500">
+                  {new Date(l.submittedDate).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+                </td>
                 <td className="px-5 py-3.5">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${listingStatusClass(l.status)}`}>
                     {l.status}

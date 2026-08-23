@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import { ClipboardList, AlertTriangle, Download } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
+import { useListings } from "../../context/ListingsContext";
 import { activitesRecentes, repartitionParVille } from "../../data/adminSeed";
 import { DonutChart } from "../../components/DonutChart";
 
 export function AdminDashboard() {
-  const { session, listings, signalements } = useAdminPortal();
+  const { session, signalements } = useAdminPortal();
+  const { listings } = useListings();
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";
 
@@ -30,8 +32,8 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Annonces en attente" value={enAttente || 12} sub="À vérifier" tone="orange" />
-        <StatCard label="Annonces publiées" value={isSuper ? 542 : publiees || 8} sub="+18%" tone="green" />
+        <StatCard label="Annonces en attente" value={enAttente} sub="À vérifier" tone="orange" />
+        <StatCard label="Annonces publiées" value={publiees} sub="Sur la plateforme" tone="green" />
         <StatCard
           label="Paiements aujourd'hui"
           value={isSuper ? "125 000 FCFA" : "8"}

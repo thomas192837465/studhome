@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Heart, Trash2 } from "lucide-react";
-import { listings } from "../data/listings";
+import { useListings } from "../context/ListingsContext";
 import { ListingCard } from "../components/ListingCard";
 import { useApp } from "../context/AppContext";
 
 export function Favoris() {
   const { isAuthenticated, favorites, toggleFavorite } = useApp();
+  const { listings, adjustFavorite } = useListings();
   const [page, setPage] = useState(1);
 
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
@@ -15,6 +16,13 @@ export function Favoris() {
   const perPage = 8;
   const pageCount = Math.max(1, Math.ceil(favListings.length / perPage));
   const paged = favListings.slice((page - 1) * perPage, page * perPage);
+
+  const clearAll = () => {
+    favListings.forEach((l) => {
+      toggleFavorite(l.id);
+      adjustFavorite(l.id, -1);
+    });
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-10 py-10">
@@ -27,7 +35,7 @@ export function Favoris() {
         </div>
         {favListings.length > 0 && (
           <button
-            onClick={() => favListings.forEach((l) => toggleFavorite(l.id))}
+            onClick={clearAll}
             className="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             <Trash2 size={15} /> Tout supprimer

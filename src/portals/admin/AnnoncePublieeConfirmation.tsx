@@ -1,12 +1,12 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import { CheckCircle2, Mail, MessageCircle } from "lucide-react";
 import { useBasePath } from "./adminUi";
-import { useAdminPortal } from "../../context/AdminPortalContext";
+import { useListings } from "../../context/ListingsContext";
 
 export function AnnoncePublieeConfirmation() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
-  const { getListing } = useAdminPortal();
+  const { getListing } = useListings();
   const listing = id ? getListing(id) : undefined;
 
   return (

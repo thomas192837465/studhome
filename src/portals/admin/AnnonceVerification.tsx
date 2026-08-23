@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useAdminPortal } from "../../context/AdminPortalContext";
-import { listingStatusClass, useBasePath } from "./adminUi";
+import { useListings } from "../../context/ListingsContext";
+import { useBasePath } from "./adminUi";
+import { listingStatusClass } from "../../data/listingStatus";
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return (
@@ -19,19 +20,18 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
 }
 
 const checklist = [
-  "Photos cohérentes",
+  "Photos ajoutées",
   "Description complète",
-  "Prix réaliste",
-  "Localisation vérifiée",
+  "Prix renseigné",
+  "Ville et quartier renseignés",
   "Numéro WhatsApp valide",
-  "Pièce d'identité vérifiée",
 ];
 
 export function AnnonceVerification() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
-  const { getListing, publishListing, refuseListing } = useAdminPortal();
+  const { getListing, publishListing, refuseListing } = useListings();
   const listing = id ? getListing(id) : undefined;
 
   if (!listing) {
@@ -44,6 +44,14 @@ export function AnnonceVerification() {
       </div>
     );
   }
+
+  const checks = [
+    listing.gallery.length > 0,
+    listing.description.trim().length > 0,
+    listing.price > 0,
+    !!listing.city && !!listing.quartier,
+    !!listing.ownerPhone,
+  ];
 
   const handlePublish = () => {
     publishListing(listing.id);
@@ -63,19 +71,27 @@ export function AnnonceVerification() {
 
       <div className="grid lg:grid-cols-[1.3fr_1fr_0.9fr] gap-6">
         <div>
-          <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
-            <img src={listing.image} alt={listing.title} className="h-full w-full object-cover" />
+          <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+            {listing.gallery[0] ? (
+              <img src={listing.gallery[0]} alt={listing.title} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-sm text-gray-400">Aucune photo</span>
+            )}
           </div>
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {[listing.image, listing.image, listing.image].map((img, i) => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                <img src={img} alt="" className="h-full w-full object-cover" />
-              </div>
-            ))}
-            <div className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-500">
-              +8
+          {listing.gallery.length > 1 && (
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {listing.gallery.slice(1, 4).map((img, i) => (
+                <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                </div>
+              ))}
+              {listing.gallery.length > 4 && (
+                <div className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-500">
+                  +{listing.gallery.length - 4}
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         <div>
@@ -89,37 +105,43 @@ export function AnnonceVerification() {
             {listing.price.toLocaleString("fr-FR")} FCFA <span className="text-sm font-normal text-gray-500">/ mois</span>
           </p>
           <p className="mt-1 text-sm text-gray-500">
-            {listing.ville}, {listing.quartier}
+            {listing.city}, {listing.quartier}
           </p>
-          <p className="text-sm text-gray-500">Université(s) : {listing.universities.join(", ")}</p>
+          <p className="text-sm text-gray-500">Université(s) : {listing.universities.join(", ") || "—"}</p>
 
           <div className="mt-4 rounded-xl border border-gray-100 p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-400">Propriétaire</p>
-              <p className="font-semibold text-brand-navy text-sm">{listing.owner}</p>
+              <p className="font-semibold text-brand-navy text-sm">{listing.ownerName}</p>
               <p className="text-xs text-gray-500">{listing.ownerPhone}</p>
             </div>
             <WhatsAppIcon />
           </div>
 
           <h3 className="font-semibold text-brand-navy text-sm mt-4 mb-1.5">Description</h3>
-          <p className="text-sm text-gray-500">{listing.description}</p>
+          <p className="text-sm text-gray-500">{listing.description || "Aucune description."}</p>
 
           <h3 className="font-semibold text-brand-navy text-sm mt-4 mb-1.5">Équipements</h3>
           <div className="grid grid-cols-2 gap-1.5 text-sm text-gray-600">
-            {listing.equipements.map((e) => (
-              <span key={e}>• {e}</span>
-            ))}
+            {listing.equipements.length > 0 ? (
+              listing.equipements.map((e) => <span key={e}>• {e}</span>)
+            ) : (
+              <span className="text-gray-400">Aucun équipement renseigné</span>
+            )}
           </div>
         </div>
 
         <div>
           <h3 className="font-semibold text-brand-navy text-sm mb-3">Checklist de vérification</h3>
           <ul className="space-y-2 mb-6">
-            {checklist.map((c) => (
+            {checklist.map((c, i) => (
               <li key={c} className="flex items-center justify-between text-sm text-gray-600">
                 {c}
-                <CheckCircle2 size={16} className="text-brand-green" />
+                {checks[i] ? (
+                  <CheckCircle2 size={16} className="text-brand-green" />
+                ) : (
+                  <span className="h-4 w-4 rounded-full border-2 border-gray-200" />
+                )}
               </li>
             ))}
           </ul>

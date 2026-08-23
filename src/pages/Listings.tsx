@@ -1,27 +1,21 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { listings } from "../data/listings";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useListings } from "../context/ListingsContext";
 import { ListingCard } from "../components/ListingCard";
 
-const typeOptions = [
-  "Chambre en colocation",
-  "Studio",
-  "Appartement",
-  "Chambre privée",
-  "Résidence étudiante",
-] as const;
+const typeOptions = ["Chambre", "Studio", "Appartement", "Résidence étudiante", "Colocation"] as const;
 
 type SortKey = "recent" | "asc" | "desc";
 
 export function Listings() {
+  const { getPublicListings } = useListings();
+  const allListings = getPublicListings();
   const [params, setParams] = useSearchParams();
   const [ville, setVille] = useState(params.get("ville") ?? "");
   const [universite, setUniversite] = useState(params.get("universite") ?? "");
   const [budgetMax, setBudgetMax] = useState(200000);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(["Chambre en colocation"]);
-  const [furnishedOnly, setFurnishedOnly] = useState(true);
-  const [showMoreTypes, setShowMoreTypes] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
 
@@ -30,18 +24,18 @@ export function Listings() {
   };
 
   const filtered = useMemo(() => {
-    let result = listings.filter((l) => {
+    let result = allListings.filter((l) => {
       if (ville && !l.city.toLowerCase().includes(ville.toLowerCase())) return false;
-      if (universite && !l.university.toLowerCase().includes(universite.toLowerCase())) return false;
+      if (universite && !l.universities.some((u) => u.toLowerCase().includes(universite.toLowerCase()))) return false;
       if (l.price > budgetMax) return false;
       if (selectedTypes.length && !selectedTypes.includes(l.type)) return false;
-      if (furnishedOnly && !l.furnished) return false;
       return true;
     });
     if (sort === "asc") result = [...result].sort((a, b) => a.price - b.price);
     if (sort === "desc") result = [...result].sort((a, b) => b.price - a.price);
+    if (sort === "recent") result = [...result].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return result;
-  }, [ville, universite, budgetMax, selectedTypes, furnishedOnly, sort]);
+  }, [allListings, ville, universite, budgetMax, selectedTypes, sort]);
 
   const perPage = 6;
   const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -58,7 +52,6 @@ export function Listings() {
   const reset = () => {
     setBudgetMax(200000);
     setSelectedTypes([]);
-    setFurnishedOnly(false);
     setPage(1);
   };
 
@@ -132,7 +125,7 @@ export function Listings() {
 
           <h4 className="font-semibold text-sm text-brand-navy mt-6 mb-3">Type de logement</h4>
           <div className="space-y-2.5">
-            {typeOptions.slice(0, showMoreTypes ? typeOptions.length : 3).map((t) => (
+            {typeOptions.map((t) => (
               <label key={t} className="flex items-center gap-2.5 text-sm text-gray-600">
                 <input
                   type="checkbox"
@@ -143,29 +136,6 @@ export function Listings() {
                 {t}
               </label>
             ))}
-          </div>
-          <button
-            onClick={() => setShowMoreTypes((s) => !s)}
-            className="mt-2 flex items-center gap-1 text-sm font-medium text-brand-blue"
-          >
-            {showMoreTypes ? "Voir moins" : "Voir plus"} <ChevronDown size={14} />
-          </button>
-
-          <h4 className="font-semibold text-sm text-brand-navy mt-6 mb-3">Equipements</h4>
-          <div className="space-y-2.5">
-            <label className="flex items-center gap-2.5 text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={furnishedOnly}
-                onChange={(e) => setFurnishedOnly(e.target.checked)}
-                className="h-4 w-4 rounded accent-brand-blue"
-              />
-              Meublé
-            </label>
-            <label className="flex items-center gap-2.5 text-sm text-gray-600">
-              <input type="checkbox" className="h-4 w-4 rounded accent-brand-blue" />
-              Non meublé
-            </label>
           </div>
 
           <button onClick={reset} className="mt-6 text-sm font-semibold text-brand-blue">
@@ -193,7 +163,9 @@ export function Listings() {
 
           {paged.length === 0 ? (
             <p className="text-gray-400 text-sm py-16 text-center">
-              Aucun logement ne correspond à votre recherche.
+              {allListings.length === 0
+                ? "Aucun logement publié pour l'instant. Revenez bientôt !"
+                : "Aucun logement ne correspond à votre recherche."}
             </p>
           ) : (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">

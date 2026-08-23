@@ -1,10 +1,38 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap } from "lucide-react";
 import { useOwner } from "../../context/OwnerContext";
-import houseImg from "../../assets/images/accommodation-main.jpg";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
+
+const MAX_PHOTOS = 15;
+const MAX_DIMENSION = 1600;
+
+function resizeImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image invalide"));
+      img.onload = () => {
+        const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 const typeOptions = [
   { id: "Chambre", icon: Bed, desc: "Chambre simple avec accès aux espaces communs" },
@@ -34,7 +62,25 @@ const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Park
 export function PublishWizard() {
   const { draft, updateDraft, submitDraft } = useOwner();
   const [step, setStep] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PHOTOS - draft.photos.length;
+    const toProcess = Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, Math.max(0, remaining));
+    if (toProcess.length === 0) return;
+    setUploading(true);
+    try {
+      const resized = await Promise.all(toProcess.map(resizeImageFile));
+      updateDraft({ photos: [...draft.photos, ...resized] });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const next = () => (step < 6 ? setStep(step + 1) : undefined);
   const back = () => (step > 1 ? setStep(step - 1) : navigate("/proprietaire/publier"));
@@ -203,16 +249,41 @@ export function PublishWizard() {
             <p className="mt-1 text-sm text-gray-500">
               Ajoutez jusqu'à 15 photos. La première photo sera utilisée comme couverture de votre annonce.
             </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
             <button
               type="button"
-              onClick={() => updateDraft({ photos: [...draft.photos, houseImg] })}
-              className="mt-5 w-full rounded-xl border-2 border-dashed border-gray-200 py-10 flex flex-col items-center gap-2 text-sm text-gray-500 hover:border-brand-blue/40 hover:bg-brand-blue-light/30 transition-colors"
+              disabled={uploading || draft.photos.length >= MAX_PHOTOS}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleFiles(e.dataTransfer.files);
+              }}
+              className="mt-5 w-full rounded-xl border-2 border-dashed border-gray-200 py-10 flex flex-col items-center gap-2 text-sm text-gray-500 hover:border-brand-blue/40 hover:bg-brand-blue-light/30 transition-colors disabled:opacity-60"
             >
               <UploadCloud size={28} className="text-gray-400" />
               <span>
-                Glissez-déposez vos photos ici ou <span className="text-brand-blue font-medium">cliquez pour sélectionner</span>
+                {uploading
+                  ? "Traitement des photos..."
+                  : draft.photos.length >= MAX_PHOTOS
+                    ? "Nombre maximum de photos atteint"
+                    : (
+                      <>
+                        Glissez-déposez vos photos ici ou <span className="text-brand-blue font-medium">cliquez pour sélectionner</span>
+                      </>
+                    )}
               </span>
-              <span className="text-xs text-gray-400">JPG, PNG — Max 15 images — 10 Mo max par image</span>
+              <span className="text-xs text-gray-400">JPG, PNG — Max {MAX_PHOTOS} images — {draft.photos.length}/{MAX_PHOTOS} ajoutées</span>
             </button>
 
             {draft.photos.length > 0 && (
@@ -345,18 +416,26 @@ export function PublishWizard() {
             <div className="mt-5 grid sm:grid-cols-2 gap-6">
               <div>
                 <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100">
-                  <img src={draft.photos[0] ?? houseImg} alt="" className="h-full w-full object-cover" />
+                  {draft.photos[0] ? (
+                    <img src={draft.photos[0]} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">
+                      Aucune photo ajoutée
+                    </div>
+                  )}
                   <span className="absolute top-3 left-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-brand-green">
                     Aperçu de votre annonce
                   </span>
                 </div>
-                <div className="mt-2 grid grid-cols-4 gap-2">
-                  {(draft.photos.length ? draft.photos : [houseImg, houseImg, houseImg, houseImg]).slice(0, 4).map((p, i) => (
-                    <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                      <img src={p} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
+                {draft.photos.length > 1 && (
+                  <div className="mt-2 grid grid-cols-4 gap-2">
+                    {draft.photos.slice(1, 5).map((p, i) => (
+                      <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        <img src={p} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <h3 className="font-display text-lg font-bold text-brand-navy">
@@ -402,16 +481,22 @@ export function PublishWizard() {
         )}
 
         {step < 6 && (
-          <div className="mt-8 flex justify-between">
-            <button onClick={back} className="rounded-xl border border-gray-200 px-6 py-2.5 font-semibold text-brand-navy hover:bg-gray-50 transition-colors">
-              Retour
-            </button>
-            <button
-              onClick={next}
-              className="rounded-xl bg-brand-blue px-6 py-2.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
-            >
-              Suivant →
-            </button>
+          <div className="mt-8">
+            <div className="flex justify-between">
+              <button onClick={back} className="rounded-xl border border-gray-200 px-6 py-2.5 font-semibold text-brand-navy hover:bg-gray-50 transition-colors">
+                Retour
+              </button>
+              <button
+                onClick={next}
+                disabled={step === 1 ? !draft.type : step === 3 ? draft.photos.length === 0 : false}
+                className="rounded-xl bg-brand-blue px-6 py-2.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Suivant →
+              </button>
+            </div>
+            {step === 3 && draft.photos.length === 0 && (
+              <p className="mt-2 text-right text-xs text-gray-400">Ajoutez au moins une photo pour continuer.</p>
+            )}
           </div>
         )}
       </div>

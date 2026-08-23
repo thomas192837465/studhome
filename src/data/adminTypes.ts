@@ -1,25 +1,5 @@
 export type PortalRole = "Admin" | "Super Admin";
 
-export type AdminListingStatus = "En attente" | "Publiée" | "Modifications demandées" | "Refusée";
-
-export interface AdminListing {
-  id: string;
-  title: string;
-  ville: string;
-  quartier: string;
-  price: number;
-  owner: string;
-  ownerPhone: string;
-  submitted: string;
-  status: AdminListingStatus;
-  image: string;
-  universities: string[];
-  description: string;
-  equipements: string[];
-  modificationMessage?: string;
-  modificationReason?: string;
-}
-
 export interface Signalement {
   id: string;
   logement: string;

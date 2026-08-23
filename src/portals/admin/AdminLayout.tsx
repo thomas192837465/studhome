@@ -16,9 +16,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
+import { useListings } from "../../context/ListingsContext";
 
 export function AdminLayout() {
-  const { session, signalements, listings, logout } = useAdminPortal();
+  const { session, signalements, logout } = useAdminPortal();
+  const { listings } = useListings();
   const navigate = useNavigate();
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";

@@ -1,26 +1,38 @@
 import { useAdminPortal } from "../../context/AdminPortalContext";
+import { useListings } from "../../context/ListingsContext";
 import { Sparkline } from "../../components/Sparkline";
 import { BarChart } from "../../components/BarChart";
 import { DonutChart } from "../../components/DonutChart";
 import { repartitionParVille } from "../../data/adminSeed";
 
 const inscriptions = [12, 18, 15, 22, 19, 28, 24, 30, 26, 33, 29, 35];
-const annoncesPubliees = [
-  { label: "Chambres", value: 45 },
-  { label: "Studios", value: 25 },
-  { label: "Apparts.", value: 18 },
-  { label: "Colocs", value: 12 },
-];
-const typesLogements = [
-  { label: "Chambres", value: 45, color: "#26A9E1" },
-  { label: "Studios", value: 25, color: "#16A34A" },
-  { label: "Appartements", value: 18, color: "#FAAE3F" },
-  { label: "Colocations", value: 12, color: "#A78BFA" },
-];
+const typeColors: Record<string, string> = {
+  Chambre: "#26A9E1",
+  Studio: "#16A34A",
+  Appartement: "#FAAE3F",
+  "Résidence étudiante": "#A78BFA",
+  Colocation: "#F472B6",
+};
 
 export function Statistiques() {
   const { session } = useAdminPortal();
+  const { listings } = useListings();
   const isSuper = session?.role === "Super Admin";
+
+  const publiees = listings.filter((l) => l.status === "Publiée");
+  const contactsGeneres = listings.reduce((sum, l) => sum + l.unlocksCount, 0);
+
+  const typeCounts = new Map<string, number>();
+  for (const l of publiees) {
+    const type = l.type || "Autre";
+    typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
+  }
+  const typesLogements = Array.from(typeCounts.entries()).map(([label, value]) => ({
+    label,
+    value,
+    color: typeColors[label] ?? "#CBD5E1",
+  }));
+  const annoncesParType = typesLogements.map((t) => ({ label: t.label, value: t.value }));
 
   return (
     <div className="p-6 sm:p-10">
@@ -38,8 +50,8 @@ export function Statistiques() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <Stat label="Inscriptions" value={isSuper ? "3 452" : "153"} />
-        <Stat label="Annonces publiées" value={isSuper ? "542" : "28"} />
-        <Stat label="Contacts générés" value={isSuper ? "2 865" : "352"} />
+        <Stat label="Annonces publiées" value={publiees.length} />
+        <Stat label="Contacts générés" value={contactsGeneres} />
         <Stat label="Revenus" value={isSuper ? "2 450 000 FCFA" : "350 000 FCFA"} />
       </div>
 
@@ -49,8 +61,12 @@ export function Statistiques() {
           <Sparkline data={inscriptions} height={110} className="w-full h-28" color="#26A9E1" />
         </div>
         <div className="rounded-2xl border border-gray-100 p-5">
-          <h2 className="font-semibold text-brand-navy mb-4">Annonces publiées</h2>
-          <BarChart data={annoncesPubliees} color="#16A34A" height={130} />
+          <h2 className="font-semibold text-brand-navy mb-4">Annonces publiées par type</h2>
+          {annoncesParType.length > 0 ? (
+            <BarChart data={annoncesParType} color="#16A34A" height={130} />
+          ) : (
+            <p className="text-sm text-gray-400 py-8 text-center">Aucune annonce publiée pour l'instant.</p>
+          )}
         </div>
       </div>
 
@@ -61,14 +77,18 @@ export function Statistiques() {
         </div>
         <div className="rounded-2xl border border-gray-100 p-5">
           <h2 className="font-semibold text-brand-navy mb-4">Types de logements</h2>
-          <DonutChart data={typesLogements} />
+          {typesLogements.length > 0 ? (
+            <DonutChart data={typesLogements} />
+          ) : (
+            <p className="text-sm text-gray-400 py-8 text-center">Aucune annonce publiée pour l'instant.</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-5">
       <p className="text-xs text-gray-500">{label}</p>

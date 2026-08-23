@@ -62,8 +62,18 @@ export function Login() {
               <Field label="Nom" placeholder="" />
             </>
           )}
-          <Field label="Email" type="email" placeholder="" />
-          <Field label="Mot de passe" type="password" placeholder="" />
+          <Field
+            label="Email"
+            type="email"
+            placeholder=""
+            defaultValue={tab === "connexion" ? "etudiant@studhome.cm" : undefined}
+          />
+          <Field
+            label="Mot de passe"
+            type="password"
+            placeholder=""
+            defaultValue={tab === "connexion" ? "test1234" : undefined}
+          />
           {tab === "inscription" && <Field label="Ressaisir le mot de passe" type="password" placeholder="" />}
 
           {tab === "connexion" && (
@@ -143,10 +153,12 @@ function Field({
   label,
   type = "text",
   placeholder,
+  defaultValue,
 }: {
   label: string;
   type?: string;
   placeholder?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className="block">
@@ -154,6 +166,7 @@ function Field({
       <input
         type={type}
         placeholder={placeholder}
+        defaultValue={defaultValue}
         required
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
       />

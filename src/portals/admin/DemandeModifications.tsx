@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bold, Italic, List, ListOrdered, Info } from "lucide-react";
-import { useAdminPortal } from "../../context/AdminPortalContext";
-import { listingStatusClass, useBasePath } from "./adminUi";
+import { useListings } from "../../context/ListingsContext";
+import { useBasePath } from "./adminUi";
+import { listingStatusClass } from "../../data/listingStatus";
 
 const defaultMessage = `Bonjour,
 
@@ -19,7 +20,7 @@ export function DemandeModifications() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
-  const { getListing, requestModification } = useAdminPortal();
+  const { getListing, requestModification } = useListings();
   const listing = id ? getListing(id) : undefined;
   const [message, setMessage] = useState(defaultMessage);
   const [reason, setReason] = useState("Informations incomplètes");
@@ -84,12 +85,18 @@ export function DemandeModifications() {
         <div>
           <h3 className="font-semibold text-brand-navy text-sm mb-3">Récapitulatif de l'annonce</h3>
           <div className="rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-            <img src={listing.image} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
+            {listing.gallery[0] ? (
+              <img src={listing.gallery[0]} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
+            ) : (
+              <span className="h-14 w-14 rounded-lg bg-gray-100 shrink-0" />
+            )}
             <div className="text-sm">
               <p className="font-semibold text-brand-navy">{listing.title}</p>
               <p className="text-gray-500">{listing.price.toLocaleString("fr-FR")} FCFA / mois</p>
-              <p className="text-xs text-gray-400 mt-1">Soumise le : {listing.submitted}</p>
-              <p className="text-xs text-gray-400">Par : {listing.owner}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Soumise le : {new Date(listing.submittedDate).toLocaleDateString("fr-FR")}
+              </p>
+              <p className="text-xs text-gray-400">Par : {listing.ownerName}</p>
             </div>
           </div>
 
