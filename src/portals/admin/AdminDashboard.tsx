@@ -5,20 +5,22 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHandPaper } from "@fortawesome/free-solid-svg-icons";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
+import { useSignalements } from "../../context/SignalementsContext";
 import { activitesRecentes } from "../../data/adminSeed";
 import { DonutChart } from "../../components/DonutChart";
 
 const cityColors = ["#26A9E1", "#16A34A", "#FAAE3F", "#A78BFA", "#F472B6", "#CBD5E1"];
 
 export function AdminDashboard() {
-  const { session, signalements } = useAdminPortal();
+  const { session } = useAdminPortal();
   const { listings } = useListings();
+  const { signalements } = useSignalements();
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";
 
   const enAttente = listings.filter((l) => l.status === "En attente").length;
   const publiees = listings.filter((l) => l.status === "Publiée").length;
-  const aTraiter = signalements.filter((s) => s.statut !== "Résolu").length;
+  const aTraiter = signalements.filter((s) => s.status !== "Résolu").length;
   const proprietaires = new Set(listings.map((l) => l.ownerId)).size;
   const contactsGeneres = listings.reduce((sum, l) => sum + l.unlocksCount, 0);
 

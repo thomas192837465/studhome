@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, ClipboardList, AlertTriangle, Star } from "lucide-react";
-import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
 import { useReviews } from "../../context/ReviewsContext";
+import { useSignalements } from "../../context/SignalementsContext";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -17,9 +17,9 @@ function timeAgo(iso: string) {
 }
 
 export function NotificationBell({ base }: { base: string }) {
-  const { signalements } = useAdminPortal();
   const { listings } = useListings();
   const { reviews } = useReviews();
+  const { signalements } = useSignalements();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export function NotificationBell({ base }: { base: string }) {
   const pendingListings = listings
     .filter((l) => l.status === "En attente")
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const openSignalements = signalements.filter((s) => s.statut !== "Résolu");
+  const openSignalements = signalements.filter((s) => s.status !== "Résolu");
   const pendingReviews = reviews
     .filter((r) => r.status === "En attente")
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -61,8 +61,8 @@ export function NotificationBell({ base }: { base: string }) {
       key: `signalement-${s.id}`,
       icon: AlertTriangle,
       tone: "text-red-500 bg-red-50",
-      text: `Signalement : ${s.raison} — ${s.logement}`,
-      time: s.date,
+      text: `Signalement : ${s.reason} — ${s.listingTitle}`,
+      time: timeAgo(s.createdAt),
       onClick: () => navigate(`${base}/signalements`),
     })),
   ];

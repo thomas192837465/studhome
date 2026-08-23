@@ -147,3 +147,44 @@ create policy "reviews_delete_all_temp" on public.reviews
   for delete using (true);
 
 alter publication supabase_realtime add table public.reviews;
+
+-- ============================================================================
+-- Migration 3: signalements (students reporting a listing to admins)
+-- ============================================================================
+
+create table if not exists public.signalements (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  listing_title text not null,
+  reported_by text not null,
+  reason text not null,
+  details text not null default '',
+  status text not null default 'Nouveau'
+    check (status in ('Nouveau', 'En cours', 'Résolu')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists signalements_listing_id_idx on public.signalements (listing_id);
+create index if not exists signalements_status_idx on public.signalements (status);
+
+alter table public.signalements enable row level security;
+
+drop policy if exists "signalements_select_all_temp" on public.signalements;
+drop policy if exists "signalements_insert_all_temp" on public.signalements;
+drop policy if exists "signalements_update_all_temp" on public.signalements;
+drop policy if exists "signalements_delete_all_temp" on public.signalements;
+
+-- TEMPORARY policies, same rationale as the listings table above.
+create policy "signalements_select_all_temp" on public.signalements
+  for select using (true);
+
+create policy "signalements_insert_all_temp" on public.signalements
+  for insert with check (true);
+
+create policy "signalements_update_all_temp" on public.signalements
+  for update using (true);
+
+create policy "signalements_delete_all_temp" on public.signalements
+  for delete using (true);
+
+alter publication supabase_realtime add table public.signalements;

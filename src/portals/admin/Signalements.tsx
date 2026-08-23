@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { useAdminPortal } from "../../context/AdminPortalContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faTrash, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { useSignalements } from "../../context/SignalementsContext";
 import { signalementStatusClass } from "./adminUi";
 
 const statuses = ["Tous les statuts", "Nouveau", "En cours", "Résolu"] as const;
 
 export function Signalements() {
-  const { signalements, resolveSignalement } = useAdminPortal();
+  const { signalements, setSignalementStatus, deleteSignalement } = useSignalements();
   const [filter, setFilter] = useState<(typeof statuses)[number]>("Tous les statuts");
 
-  const filtered = signalements.filter((s) => filter === "Tous les statuts" || s.statut === filter);
+  const filtered = signalements.filter((s) => filter === "Tous les statuts" || s.status === filter);
 
   return (
     <div className="p-6 sm:p-10">
@@ -28,56 +30,59 @@ export function Signalements() {
         </select>
       </div>
 
-      <div className="rounded-2xl border border-gray-100 overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
-          <thead>
-            <tr className="text-left text-gray-500 border-b border-gray-100">
-              <th className="px-5 py-3 font-semibold">#</th>
-              <th className="px-5 py-3 font-semibold">Logement</th>
-              <th className="px-5 py-3 font-semibold">Signalé par</th>
-              <th className="px-5 py-3 font-semibold">Raison</th>
-              <th className="px-5 py-3 font-semibold">Date</th>
-              <th className="px-5 py-3 font-semibold">Statut</th>
-              <th className="px-5 py-3 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
-                  Aucun signalement pour l'instant.
-                </td>
-              </tr>
-            )}
-            {filtered.map((s) => (
-              <tr key={s.id} className="border-b border-gray-50 last:border-0">
-                <td className="px-5 py-3.5 text-gray-500">#{s.id}</td>
-                <td className="px-5 py-3.5 text-brand-navy font-medium">{s.logement}</td>
-                <td className="px-5 py-3.5 text-gray-600">{s.signalePar}</td>
-                <td className="px-5 py-3.5 text-gray-600">{s.raison}</td>
-                <td className="px-5 py-3.5 text-gray-500">{s.date}</td>
-                <td className="px-5 py-3.5">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${signalementStatusClass(s.statut)}`}>
-                    {s.statut}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
-                  {s.statut !== "Résolu" ? (
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center text-gray-400">
+          Aucun signalement pour l'instant.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((s) => (
+            <div key={s.id} className="rounded-2xl border border-gray-100 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-brand-navy text-sm">
+                    {s.listingTitle} <span className="font-normal text-gray-400">— signalé par {s.reportedBy}</span>
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-sm text-gray-600">{s.reason}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${signalementStatusClass(s.status)}`}>
+                      {s.status}
+                    </span>
+                  </div>
+                  {s.details && <p className="mt-2 text-sm text-gray-600">{s.details}</p>}
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    {new Date(s.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {s.status === "Nouveau" && (
                     <button
-                      onClick={() => resolveSignalement(s.id)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-brand-blue hover:bg-brand-blue-light"
+                      onClick={() => setSignalementStatus(s.id, "En cours")}
+                      className="flex items-center gap-1.5 rounded-lg bg-brand-blue-light px-3 py-1.5 text-xs font-semibold text-brand-blue hover:bg-brand-blue/20"
                     >
-                      Marquer résolu
+                      <FontAwesomeIcon icon={faSpinner} className="h-3 w-3" /> Prendre en charge
                     </button>
-                  ) : (
-                    <span className="text-xs text-gray-300">—</span>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  {s.status !== "Résolu" && (
+                    <button
+                      onClick={() => setSignalementStatus(s.id, "Résolu")}
+                      className="flex items-center gap-1.5 rounded-lg bg-brand-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                    >
+                      <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> Marquer résolu
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteSignalement(s.id)}
+                    className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
+                  >
+                    <FontAwesomeIcon icon={faTrash} className="h-3 w-3" /> Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

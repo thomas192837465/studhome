@@ -1,10 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AdminSession, PortalRole, Signalement } from "../data/adminTypes";
-import { seedSignalements, seedTransactions, seedLogs } from "../data/adminSeed";
+import type { AdminSession, PortalRole } from "../data/adminTypes";
+import { seedTransactions, seedLogs } from "../data/adminSeed";
 
 interface PersistedAdminState {
   session: AdminSession | null;
-  signalements: Signalement[];
 }
 
 const STORAGE_KEY = "studhome-admin-state-v2";
@@ -16,17 +15,15 @@ function loadState(): PersistedAdminState {
   } catch {
     // ignore
   }
-  return { session: null, signalements: seedSignalements };
+  return { session: null };
 }
 
 interface AdminPortalContextValue {
   session: AdminSession | null;
-  signalements: Signalement[];
   transactions: typeof seedTransactions;
   logs: typeof seedLogs;
   login: (role: PortalRole, name?: string) => void;
   logout: () => void;
-  resolveSignalement: (id: string) => void;
 }
 
 const AdminPortalContext = createContext<AdminPortalContextValue | null>(null);
@@ -43,21 +40,13 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
 
   const logout = () => setState((s) => ({ ...s, session: null }));
 
-  const resolveSignalement = (id: string) =>
-    setState((s) => ({
-      ...s,
-      signalements: s.signalements.map((sig) => (sig.id === id ? { ...sig, statut: "Résolu" } : sig)),
-    }));
-
   const value = useMemo<AdminPortalContextValue>(
     () => ({
       session: state.session,
-      signalements: state.signalements,
       transactions: seedTransactions,
       logs: seedLogs,
       login,
       logout,
-      resolveSignalement,
     }),
     [state],
   );

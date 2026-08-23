@@ -18,18 +18,20 @@ import {
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
 import { useReviews } from "../../context/ReviewsContext";
+import { useSignalements } from "../../context/SignalementsContext";
 import { NotificationBell } from "./NotificationBell";
 
 export function AdminLayout() {
-  const { session, signalements, logout } = useAdminPortal();
+  const { session, logout } = useAdminPortal();
   const { listings } = useListings();
   const { reviews } = useReviews();
+  const { signalements } = useSignalements();
   const navigate = useNavigate();
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";
 
   const pendingCount = listings.filter((l) => l.status === "En attente").length;
-  const signalementsCount = signalements.filter((s) => s.statut !== "Résolu").length;
+  const signalementsCount = signalements.filter((s) => s.status !== "Résolu").length;
   const pendingReviewsCount = reviews.filter((r) => r.status === "En attente").length;
 
   const navItems = [

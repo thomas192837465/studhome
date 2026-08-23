@@ -2,13 +2,22 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot, faCircleCheck, faStar as faStarSolid } from "@fortawesome/free-solid-svg-icons";
+import { faLocationDot, faCircleCheck, faStar as faStarSolid, faFlag } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
 import { useApp } from "../context/AppContext";
 import { useReviews } from "../context/ReviewsContext";
+import { useSignalements } from "../context/SignalementsContext";
 import { MapPreview } from "../components/MapPreview";
 import { Avatar } from "../components/Avatar";
 import { StarRating } from "../components/StarRating";
+
+const reportReasons = [
+  "Annonce frauduleuse",
+  "Logement introuvable ou inexistant",
+  "Propriétaire injoignable",
+  "Contenu inapproprié",
+  "Autre",
+];
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return (
@@ -37,12 +46,18 @@ export function AccommodationDetails() {
   const listing = id ? getListing(id) : undefined;
   const { isAuthenticated, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
   const { getPublishedForListing, submitReview } = useReviews();
+  const { submitSignalement } = useSignalements();
   const [activeImg, setActiveImg] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportReason, setReportReason] = useState(reportReasons[0]);
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportError, setReportError] = useState("");
 
   useEffect(() => {
     setActiveImg(0);
@@ -85,6 +100,24 @@ export function AccommodationDetails() {
     setReviewSubmitted(true);
     setReviewRating(0);
     setReviewComment("");
+  };
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      navigate("/connexion");
+      return;
+    }
+    setReportError("");
+    try {
+      await submitSignalement(listing.id, listing.title, authorName || "Étudiant StudHome", reportReason, reportDetails);
+      setReportSubmitted(true);
+      setShowReportForm(false);
+      setReportDetails("");
+      setReportReason(reportReasons[0]);
+    } catch {
+      setReportError("Une erreur est survenue, réessayez.");
+    }
   };
 
   const handleToggleFavorite = () => {
@@ -386,6 +419,57 @@ export function AccommodationDetails() {
               </p>
               <p className="text-gray-500">Logements publiés : {ownerListingsCount}</p>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+            {reportSubmitted ? (
+              <p className="flex items-center justify-center gap-1.5 text-sm text-brand-green font-medium">
+                <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Signalement envoyé, notre équipe va l'examiner.
+              </p>
+            ) : showReportForm ? (
+              <form onSubmit={handleSubmitReport} className="text-left">
+                <p className="text-sm font-semibold text-brand-navy mb-2">Signaler ce logement</p>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none mb-2"
+                >
+                  {reportReasons.map((r) => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Détails (optionnel)"
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+                {reportError && <p className="mt-1.5 text-xs text-red-500">{reportError}</p>}
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600"
+                  >
+                    Envoyer le signalement
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReportForm(false)}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                onClick={() => (isAuthenticated ? setShowReportForm(true) : navigate("/connexion"))}
+                className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500"
+              >
+                <FontAwesomeIcon icon={faFlag} className="h-3 w-3" /> Signaler ce logement
+              </button>
+            )}
           </div>
 
           {!unlocked && (

@@ -1,14 +1,5 @@
 export type PortalRole = "Admin" | "Super Admin";
 
-export interface Signalement {
-  id: string;
-  logement: string;
-  signalePar: string;
-  raison: string;
-  date: string;
-  statut: "Nouveau" | "En cours" | "Résolu";
-}
-
 export interface AdminTransaction {
   id: string;
   date: string;

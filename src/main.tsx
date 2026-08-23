@@ -8,19 +8,22 @@ import { OwnerProvider } from './context/OwnerContext.tsx'
 import { AdminPortalProvider } from './context/AdminPortalContext.tsx'
 import { ListingsProvider } from './context/ListingsContext.tsx'
 import { ReviewsProvider } from './context/ReviewsContext.tsx'
+import { SignalementsProvider } from './context/SignalementsContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ListingsProvider>
         <ReviewsProvider>
-          <AppProvider>
-            <OwnerProvider>
-              <AdminPortalProvider>
-                <App />
-              </AdminPortalProvider>
-            </OwnerProvider>
-          </AppProvider>
+          <SignalementsProvider>
+            <AppProvider>
+              <OwnerProvider>
+                <AdminPortalProvider>
+                  <App />
+                </AdminPortalProvider>
+              </OwnerProvider>
+            </AppProvider>
+          </SignalementsProvider>
         </ReviewsProvider>
       </ListingsProvider>
     </BrowserRouter>
