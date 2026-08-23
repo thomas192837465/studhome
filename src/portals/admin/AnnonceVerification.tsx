@@ -53,13 +53,13 @@ export function AnnonceVerification() {
     !!listing.ownerPhone,
   ];
 
-  const handlePublish = () => {
-    publishListing(listing.id);
+  const handlePublish = async () => {
+    await publishListing(listing.id);
     navigate(`${base}/annonces/${listing.id}/publiee`);
   };
 
-  const handleRefuse = () => {
-    refuseListing(listing.id);
+  const handleRefuse = async () => {
+    await refuseListing(listing.id);
     navigate(`${base}/annonces`);
   };
 

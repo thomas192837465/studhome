@@ -85,9 +85,20 @@ export function PublishWizard() {
   const next = () => (step < 6 ? setStep(step + 1) : undefined);
   const back = () => (step > 1 ? setStep(step - 1) : navigate("/proprietaire/publier"));
 
-  const handleSubmit = () => {
-    submitDraft();
-    navigate("/proprietaire/publier/succes");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await submitDraft();
+      navigate("/proprietaire/publier/succes");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Une erreur est survenue. Réessayez.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -463,17 +474,20 @@ export function PublishWizard() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 rounded-xl border border-gray-200 py-3 font-semibold text-brand-navy hover:bg-gray-50 transition-colors"
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-gray-200 py-3 font-semibold text-brand-navy hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Modifier
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+                disabled={submitting}
+                className="flex-1 rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
               >
-                Soumettre l'annonce
+                {submitting ? "Envoi en cours..." : "Soumettre l'annonce"}
               </button>
             </div>
+            {submitError && <p className="mt-3 text-center text-sm text-red-500">{submitError}</p>}
             <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
               <Info size={13} /> En soumettant, vous confirmez que toutes les informations sont exactes.
             </p>

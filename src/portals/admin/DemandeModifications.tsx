@@ -27,8 +27,8 @@ export function DemandeModifications() {
 
   if (!listing) return null;
 
-  const handleSend = () => {
-    requestModification(listing.id, message, reason);
+  const handleSend = async () => {
+    await requestModification(listing.id, message, reason);
     navigate(`${base}/annonces`);
   };
 

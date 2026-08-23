@@ -35,7 +35,7 @@ interface OwnerContextValue {
   logout: () => void;
   updateDraft: (patch: Partial<ListingDraft>) => void;
   resetDraft: () => void;
-  submitDraft: () => string;
+  submitDraft: () => Promise<string>;
 }
 
 const OwnerContext = createContext<OwnerContextValue | null>(null);
@@ -61,9 +61,9 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
 
   const resetDraft = () => setState((s) => ({ ...s, draft: emptyDraft }));
 
-  const submitDraft = () => {
+  const submitDraft = async () => {
     const owner = state.ownerUser;
-    const id = submitListing(state.draft, {
+    const id = await submitListing(state.draft, {
       id: owner.phone,
       name: owner.fullName,
       phone: owner.phone,
