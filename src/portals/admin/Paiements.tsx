@@ -4,7 +4,7 @@ export function Paiements() {
   const { transactions } = useAdminPortal();
   const total = transactions.reduce((s, t) => s + t.montant, 0);
   const totalCredits = transactions.reduce((s, t) => s + Number(t.pack.replace(/\D/g, "")), 0);
-  const panierMoyen = Math.round(total / transactions.length);
+  const panierMoyen = transactions.length ? Math.round(total / transactions.length) : 0;
 
   return (
     <div className="p-6 sm:p-10">
@@ -22,10 +22,10 @@ export function Paiements() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <Stat label="Revenus totaux" value={`${total.toLocaleString("fr-FR")} FCFA`} sub="+20% vs semaine dernière" />
-        <Stat label="Transactions" value={transactions.length * 8.4 | 0} sub="+12%" />
-        <Stat label="Crédits vendus" value={totalCredits} sub="+18%" />
-        <Stat label="Panier moyen" value={`${panierMoyen.toLocaleString("fr-FR")} FCFA`} sub="+10%" />
+        <Stat label="Revenus totaux" value={`${total.toLocaleString("fr-FR")} FCFA`} />
+        <Stat label="Transactions" value={transactions.length} />
+        <Stat label="Crédits vendus" value={totalCredits} />
+        <Stat label="Panier moyen" value={`${panierMoyen.toLocaleString("fr-FR")} FCFA`} />
       </div>
 
       <div className="rounded-2xl border border-gray-100 overflow-x-auto">
@@ -42,6 +42,14 @@ export function Paiements() {
             </tr>
           </thead>
           <tbody>
+            {transactions.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
+                  Aucune transaction pour l'instant — cet écran s'activera une fois le paiement réel branché
+                  (CinetPay).
+                </td>
+              </tr>
+            )}
             {transactions.map((t) => (
               <tr key={t.id} className="border-b border-gray-50 last:border-0">
                 <td className="px-5 py-3.5 text-gray-500">{t.id}</td>
@@ -67,12 +75,12 @@ export function Paiements() {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string | number; sub: string }) {
+function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-5">
       <p className="text-xs text-gray-500">{label}</p>
       <p className="font-display text-xl font-bold text-brand-navy mt-1">{value}</p>
-      <p className="text-xs text-brand-green font-medium mt-0.5">{sub}</p>
+      {sub && <p className="text-xs text-brand-green font-medium mt-0.5">{sub}</p>}
     </div>
   );
 }

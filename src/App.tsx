@@ -121,6 +121,7 @@ function App() {
           <Route path="/proprietaire/tableau-de-bord" element={<OwnerDashboard />} />
           <Route path="/proprietaire/annonces" element={<OwnerListings />} />
           <Route path="/proprietaire/annonces/:id" element={<OwnerListingDetail />} />
+          <Route path="/proprietaire/annonces/:id/modifier" element={<PublishWizard />} />
           <Route path="/proprietaire/favoris" element={<OwnerFavoris />} />
           <Route path="/proprietaire/statistiques" element={<OwnerStatistiques />} />
           <Route path="/proprietaire/profil" element={<OwnerProfile />} />

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AdminSession, PortalRole, Signalement } from "../data/adminTypes";
-import { seedSignalements, seedTransactions, seedAdministrators, seedLogs } from "../data/adminSeed";
+import { seedSignalements, seedTransactions, seedLogs } from "../data/adminSeed";
 
 interface PersistedAdminState {
   session: AdminSession | null;
@@ -23,7 +23,6 @@ interface AdminPortalContextValue {
   session: AdminSession | null;
   signalements: Signalement[];
   transactions: typeof seedTransactions;
-  administrators: typeof seedAdministrators;
   logs: typeof seedLogs;
   login: (role: PortalRole, name?: string) => void;
   logout: () => void;
@@ -40,7 +39,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const login = (role: PortalRole, name?: string) =>
-    setState((s) => ({ ...s, session: { role, name: name ?? (role === "Super Admin" ? "Super Admin" : "Christian") } }));
+    setState((s) => ({ ...s, session: { role, name: name ?? role } }));
 
   const logout = () => setState((s) => ({ ...s, session: null }));
 
@@ -55,7 +54,6 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       session: state.session,
       signalements: state.signalements,
       transactions: seedTransactions,
-      administrators: seedAdministrators,
       logs: seedLogs,
       login,
       logout,

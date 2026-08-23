@@ -3,8 +3,14 @@ import { Plus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 
 export function Administrateurs() {
-  const { administrators } = useAdminPortal();
+  const { session } = useAdminPortal();
   const [showAdd, setShowAdd] = useState(false);
+
+  // No real accounts backend yet — the only administrator we can honestly show
+  // is the one currently logged in, instead of fabricated teammates.
+  const administrators = session
+    ? [{ id: "current", name: session.name, role: session.role, status: "Actif" as const, lastLogin: "Maintenant" }]
+    : [];
 
   return (
     <div className="p-6 sm:p-10">
@@ -68,6 +74,10 @@ export function Administrateurs() {
           </tbody>
         </table>
       </div>
+      <p className="mt-3 text-xs text-gray-400">
+        Seul le compte actuellement connecté est affiché — la gestion de vraie équipe (invitations, plusieurs comptes)
+        nécessite un système d'authentification complet, pas encore branché.
+      </p>
 
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

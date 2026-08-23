@@ -20,6 +20,7 @@ interface ListingsContextValue {
   getListingsByOwner: (ownerId: string) => Listing[];
   getPublicListings: () => Listing[];
   submitListing: (draft: ListingDraft, owner: OwnerIdentity, unlockCost?: number) => Promise<string>;
+  updateListing: (id: string, draft: ListingDraft, ownerId: string) => Promise<void>;
   publishListing: (id: string) => Promise<void>;
   refuseListing: (id: string) => Promise<void>;
   requestModification: (id: string, message: string, reason: string) => Promise<void>;
@@ -108,6 +109,37 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     return (data as ListingRow).id;
   };
 
+  const updateListing = async (id: string, draft: ListingDraft, ownerId: string) => {
+    const folder = ownerId.replace(/\D/g, "") || "owner";
+    // photos already uploaded (http URLs) are kept as-is; only new base64 previews get uploaded
+    const existingUrls = draft.photos.filter((p) => p.startsWith("http"));
+    const newDataUrls = draft.photos.filter((p) => !p.startsWith("http"));
+    const uploadedUrls = newDataUrls.length > 0 ? await uploadListingPhotos(newDataUrls, folder) : [];
+    const galleryUrls = [...existingUrls, ...uploadedUrls];
+
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        title: `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
+        type: draft.type,
+        city: draft.ville,
+        quartier: draft.quartier,
+        universities: draft.universities,
+        price: Number(draft.loyer) || 0,
+        description: draft.description,
+        equipements: draft.equipements,
+        image: galleryUrls[0] ?? "",
+        gallery: galleryUrls,
+        status: "En attente",
+        modification_message: null,
+        modification_reason: null,
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+    await fetchListings();
+  };
+
   const publishListing = async (id: string) => {
     await supabase.from("listings").update({ status: "Publiée" }).eq("id", id);
     await fetchListings();
@@ -160,6 +192,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       getListingsByOwner,
       getPublicListings,
       submitListing,
+      updateListing,
       publishListing,
       refuseListing,
       requestModification,

@@ -1,7 +1,9 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap } from "lucide-react";
 import { useOwner } from "../../context/OwnerContext";
+import { useListings } from "../../context/ListingsContext";
+import type { ListingDraft } from "../../data/listingTypes";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
@@ -60,11 +62,47 @@ const universitesOptions = [
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
 
 export function PublishWizard() {
-  const { draft, updateDraft, submitDraft } = useOwner();
+  const { id: editId } = useParams();
+  const { ownerUser, draft, updateDraft, submitDraft, resetDraft } = useOwner();
+  const { getListing, updateListing } = useListings();
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const initialized = useRef(false);
+
+  const editingListing = editId ? getListing(editId) : undefined;
+
+  useEffect(() => {
+    if (initialized.current) return;
+    if (editId) {
+      if (!editingListing) return; // wait for listings to load
+      const asDraft: ListingDraft = {
+        type: editingListing.type,
+        ville: editingListing.city,
+        quartier: editingListing.quartier,
+        universities: editingListing.universities,
+        description: editingListing.description,
+        equipements: editingListing.equipements,
+        photos: editingListing.gallery,
+        loyer: String(editingListing.price || ""),
+        charges: [],
+        caution: "1 mois",
+        disponibleDate: "",
+      };
+      updateDraft(asDraft);
+    } else {
+      resetDraft();
+    }
+    initialized.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, editingListing]);
+
+  if (editId && !editingListing) {
+    return <div className="p-10 text-center text-gray-400">Chargement de l'annonce...</div>;
+  }
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -85,15 +123,17 @@ export function PublishWizard() {
   const next = () => (step < 6 ? setStep(step + 1) : undefined);
   const back = () => (step > 1 ? setStep(step - 1) : navigate("/proprietaire/publier"));
 
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
-
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitError("");
     try {
-      await submitDraft();
-      navigate("/proprietaire/publier/succes");
+      if (editId) {
+        await updateListing(editId, draft, ownerUser.phone);
+        navigate(`/proprietaire/annonces/${editId}`);
+      } else {
+        await submitDraft();
+        navigate("/proprietaire/publier/succes");
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Une erreur est survenue. Réessayez.");
     } finally {
@@ -484,12 +524,15 @@ export function PublishWizard() {
                 disabled={submitting}
                 className="flex-1 rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
               >
-                {submitting ? "Envoi en cours..." : "Soumettre l'annonce"}
+                {submitting ? "Envoi en cours..." : editId ? "Enregistrer les modifications" : "Soumettre l'annonce"}
               </button>
             </div>
             {submitError && <p className="mt-3 text-center text-sm text-red-500">{submitError}</p>}
             <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
-              <Info size={13} /> En soumettant, vous confirmez que toutes les informations sont exactes.
+              <Info size={13} />{" "}
+              {editId
+                ? "L'annonce repassera en attente de vérification par notre équipe."
+                : "En soumettant, vous confirmez que toutes les informations sont exactes."}
             </p>
           </div>
         )}

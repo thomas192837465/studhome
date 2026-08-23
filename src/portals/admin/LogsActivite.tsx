@@ -20,22 +20,15 @@ export function LogsActivite() {
       <p className="text-sm text-gray-500 mb-6">Consultez toutes les actions effectuées sur la plateforme.</p>
 
       <div className="flex flex-wrap gap-3 mb-5">
-        <input type="date" defaultValue="2024-06-12" className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
+        <input type="date" className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
         <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
           <option>Tous les administrateurs</option>
-          <option>Super Admin</option>
-          <option>Vérificateur_01</option>
-          <option>Vérificateur_02</option>
-          <option>Support_01</option>
-          <option>Compte_01</option>
         </select>
         <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
           <option>Tous les types d'action</option>
           <option>Publication d'annonce</option>
           <option>Demande de modification</option>
           <option>Réponse signalement</option>
-          <option>Ajustement de crédits</option>
-          <option>Suspension propriétaire</option>
         </select>
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 flex-1 min-w-[160px]">
           <Search size={15} className="text-gray-400" />
@@ -61,6 +54,13 @@ export function LogsActivite() {
             </tr>
           </thead>
           <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
+                  Aucun log pour l'instant — l'enregistrement réel des actions n'est pas encore branché.
+                </td>
+              </tr>
+            )}
             {filtered.map((l) => (
               <tr key={l.id} className="border-b border-gray-50 last:border-0">
                 <td className="px-5 py-3.5 text-gray-500">{l.time}</td>

@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ClipboardList, AlertTriangle, Download } from "lucide-react";
+import { ClipboardList, AlertTriangle } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
-import { activitesRecentes, repartitionParVille } from "../../data/adminSeed";
+import { activitesRecentes } from "../../data/adminSeed";
 import { DonutChart } from "../../components/DonutChart";
+
+const cityColors = ["#26A9E1", "#16A34A", "#FAAE3F", "#A78BFA", "#F472B6", "#CBD5E1"];
 
 export function AdminDashboard() {
   const { session, signalements } = useAdminPortal();
@@ -14,6 +17,20 @@ export function AdminDashboard() {
   const enAttente = listings.filter((l) => l.status === "En attente").length;
   const publiees = listings.filter((l) => l.status === "Publiée").length;
   const aTraiter = signalements.filter((s) => s.statut !== "Résolu").length;
+  const proprietaires = new Set(listings.map((l) => l.ownerId)).size;
+  const contactsGeneres = listings.reduce((sum, l) => sum + l.unlocksCount, 0);
+
+  const repartitionParVille = useMemo(() => {
+    const publishedOnly = listings.filter((l) => l.status === "Publiée");
+    const counts = new Map<string, number>();
+    for (const l of publishedOnly) counts.set(l.city, (counts.get(l.city) ?? 0) + 1);
+    const total = publishedOnly.length;
+    return Array.from(counts.entries()).map(([ville, n], i) => ({
+      ville,
+      pct: total ? Math.round((n / total) * 100) : 0,
+      color: cityColors[i % cityColors.length],
+    }));
+  }, [listings]);
 
   return (
     <div className="p-6 sm:p-10">
@@ -24,31 +41,21 @@ export function AdminDashboard() {
             {isSuper ? "Voici un résumé complet de l'activité sur StudHome." : "Voici ce qui se passe aujourd'hui sur StudHome."}
           </p>
         </div>
-        {isSuper && (
-          <button className="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-brand-navy hover:bg-gray-50">
-            <Download size={15} /> Exporter
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Annonces en attente" value={enAttente} sub="À vérifier" tone="orange" />
         <StatCard label="Annonces publiées" value={publiees} sub="Sur la plateforme" tone="green" />
-        <StatCard
-          label="Paiements aujourd'hui"
-          value={isSuper ? "125 000 FCFA" : "8"}
-          sub={isSuper ? "+33%" : "+25% vs hier"}
-          tone="blue"
-        />
-        <StatCard label="Signalements" value={aTraiter || 6} sub="À traiter" tone="red" />
+        <StatCard label="Contacts générés" value={contactsGeneres} sub="Total" tone="blue" />
+        <StatCard label="Signalements" value={aTraiter} sub="À traiter" tone="red" />
       </div>
 
       {isSuper && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Propriétaires actifs" value="1 248" sub="+21%" tone="plain" />
-          <StatCard label="Étudiants actifs" value="3 452" sub="+31%" tone="plain" />
-          <StatCard label="Contacts générés" value="2 865" sub="+29%" tone="plain" />
-          <StatCard label="Revenus (ce mois)" value="2 450 000 FCFA" sub="+27%" tone="plain" />
+          <StatCard label="Propriétaires" value={proprietaires} sub="Ont publié une annonce" tone="plain" />
+          <StatCard label="Étudiants actifs" value="—" sub="Nécessite les comptes réels" tone="plain" />
+          <StatCard label="Contacts générés" value={contactsGeneres} sub="Total" tone="plain" />
+          <StatCard label="Revenus" value="—" sub="Nécessite le paiement réel" tone="plain" />
         </div>
       )}
 
@@ -86,10 +93,10 @@ export function AdminDashboard() {
 
           <h2 className="font-semibold text-brand-navy mb-3">Vue rapide</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard label="Logements actifs" value="520" sub="+18%" tone="plain" small />
-            <StatCard label="Étudiants actifs" value="1 256" sub="+22%" tone="plain" small />
-            <StatCard label="Contacts générés" value="352" sub="+15%" tone="plain" small />
-            <StatCard label="Revenu (mois)" value="350 000 FCFA" sub="+30%" tone="plain" small />
+            <StatCard label="Logements publiés" value={publiees} sub="Total" tone="plain" small />
+            <StatCard label="Propriétaires" value={proprietaires} sub="Ont publié" tone="plain" small />
+            <StatCard label="Contacts générés" value={contactsGeneres} sub="Total" tone="plain" small />
+            <StatCard label="Revenu" value="—" sub="Paiement à venir" tone="plain" small />
           </div>
         </>
       )}
@@ -98,21 +105,31 @@ export function AdminDashboard() {
         <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 mt-2">
           <div className="rounded-2xl border border-gray-100 p-5">
             <h2 className="font-semibold text-brand-navy mb-4">Activités récentes</h2>
-            <ul className="space-y-3">
-              {activitesRecentes.map((a) => (
-                <li key={a.text} className="flex justify-between gap-4 text-sm border-b border-gray-50 last:border-0 pb-3 last:pb-0">
-                  <span className="text-gray-600">{a.text}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{a.date}</span>
-                </li>
-              ))}
-            </ul>
+            {activitesRecentes.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">
+                Aucune activité enregistrée pour l'instant.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {activitesRecentes.map((a) => (
+                  <li key={a.text} className="flex justify-between gap-4 text-sm border-b border-gray-50 last:border-0 pb-3 last:pb-0">
+                    <span className="text-gray-600">{a.text}</span>
+                    <span className="text-xs text-gray-400 shrink-0">{a.date}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Link to={`${base}/logs`} className="mt-3 inline-block text-xs font-semibold text-brand-blue">
               Voir plus de logs
             </Link>
           </div>
           <div className="rounded-2xl border border-gray-100 p-5">
             <h2 className="font-semibold text-brand-navy mb-4">Répartition par ville</h2>
-            <DonutChart data={repartitionParVille.map((v) => ({ label: v.ville, value: v.pct, color: v.color }))} />
+            {repartitionParVille.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">Aucune annonce publiée pour l'instant.</p>
+            ) : (
+              <DonutChart data={repartitionParVille.map((v) => ({ label: v.ville, value: v.pct, color: v.color }))} />
+            )}
           </div>
         </div>
       )}
@@ -138,7 +155,7 @@ function StatCard({
     green: "text-brand-green",
     blue: "text-brand-blue",
     red: "text-red-500",
-    plain: "text-brand-green",
+    plain: "text-gray-400",
   };
   return (
     <div className={`rounded-2xl border border-gray-100 ${small ? "p-4" : "p-5"}`}>

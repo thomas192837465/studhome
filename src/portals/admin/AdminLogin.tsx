@@ -13,7 +13,10 @@ export function AdminLogin() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(isSuper ? "Super Admin" : "Admin", isSuper ? "Super Admin" : "Christian");
+    const form = e.target as HTMLFormElement;
+    const email = (form.elements.namedItem("email") as HTMLInputElement)?.value ?? "";
+    const displayName = email.split("@")[0] || (isSuper ? "Super Admin" : "Admin");
+    login(isSuper ? "Super Admin" : "Admin", displayName);
     navigate(isSuper ? "/superadmin/tableau-de-bord" : "/admin/tableau-de-bord");
   };
 
@@ -48,6 +51,7 @@ export function AdminLogin() {
             <span className="mb-1.5 block text-sm font-medium text-brand-navy">Email</span>
             <input
               type="email"
+              name="email"
               defaultValue={isSuper ? "superadmin@studhome.cm" : "admin@studhome.cm"}
               placeholder="admin@studhome.cm"
               required

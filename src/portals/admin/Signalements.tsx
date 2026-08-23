@@ -42,6 +42,13 @@ export function Signalements() {
             </tr>
           </thead>
           <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
+                  Aucun signalement pour l'instant.
+                </td>
+              </tr>
+            )}
             {filtered.map((s) => (
               <tr key={s.id} className="border-b border-gray-50 last:border-0">
                 <td className="px-5 py-3.5 text-gray-500">#{s.id}</td>

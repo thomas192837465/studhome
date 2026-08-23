@@ -46,9 +46,15 @@ export function OwnerListingDetail() {
       </p>
 
       {listing.status === "Modifications demandées" && listing.modificationMessage && (
-        <div className="mt-4 rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800 whitespace-pre-line">
+        <div className="mt-4 rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800">
           <p className="font-semibold mb-1">Message de l'équipe StudHome :</p>
-          {listing.modificationMessage}
+          <p className="whitespace-pre-line">{listing.modificationMessage}</p>
+          <Link
+            to={`/proprietaire/annonces/${listing.id}/modifier`}
+            className="mt-3 inline-block rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
+          >
+            Modifier l'annonce
+          </Link>
         </div>
       )}
 
@@ -80,11 +86,19 @@ export function OwnerListingDetail() {
           <StatRow icon={Eye} value={listing.views} label="Vues totales" />
           <StatRow icon={Heart} value={listing.favoritesCount} label="Étudiants ont ajouté en favori" />
           <StatRow icon={Users} value={listing.unlocksCount} label="Étudiants ont débloqué vos coordonnées" />
+          {listing.status === "Publiée" && (
+            <Link
+              to={`/logements/${listing.id}`}
+              className="block w-full rounded-xl bg-brand-blue py-2.5 text-center font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+            >
+              Voir mon annonce
+            </Link>
+          )}
           <Link
-            to={`/logements/${listing.id}`}
-            className="block w-full rounded-xl bg-brand-blue py-2.5 text-center font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+            to={`/proprietaire/annonces/${listing.id}/modifier`}
+            className="block w-full rounded-xl border border-gray-200 py-2.5 text-center font-semibold text-brand-navy hover:bg-gray-50 transition-colors"
           >
-            Voir mon annonce
+            Modifier l'annonce
           </Link>
         </div>
       </div>

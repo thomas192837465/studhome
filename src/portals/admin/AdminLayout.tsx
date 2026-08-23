@@ -12,11 +12,11 @@ import {
   FileClock,
   BarChart3,
   Settings,
-  Bell as BellIcon,
   ChevronDown,
 } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
+import { NotificationBell } from "./NotificationBell";
 
 export function AdminLayout() {
   const { session, signalements, logout } = useAdminPortal();
@@ -105,12 +105,7 @@ export function AdminLayout() {
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="h-[70px] bg-white border-b border-gray-100 flex items-center justify-end gap-4 px-6">
-          <button className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-50">
-            <BellIcon size={18} className="text-gray-500" />
-            {signalementsCount > 0 && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-            )}
-          </button>
+          <NotificationBell base={base} />
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue text-sm font-bold">
               {session?.name.charAt(0)}

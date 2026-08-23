@@ -95,3 +95,12 @@ create policy "listing_photos_read" on storage.objects
 
 create policy "listing_photos_write_temp" on storage.objects
   for insert with check (bucket_id = 'listing-photos');
+
+drop policy if exists "listing_photos_delete_temp" on storage.objects;
+create policy "listing_photos_delete_temp" on storage.objects
+  for delete using (bucket_id = 'listing-photos');
+
+-- Enable realtime broadcasts for this table. Without this, changes made in one
+-- browser tab/session never push to other open tabs/sessions — they'd only see
+-- the update after a manual page reload.
+alter publication supabase_realtime add table public.listings;
