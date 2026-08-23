@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { CreditCard, Lock, DollarSign, ShieldCheck } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
 import { creditPacks } from "../data/creditPacks";
 
 export function BuyCredits() {
@@ -35,11 +37,11 @@ export function BuyCredits() {
             <p className="text-xs text-gray-400 mt-1">Valable {pack.validityDays} jours</p>
 
             <ul className="mt-5 space-y-2 text-sm text-left flex-1">
-              <li className="flex gap-2 text-green-700">
-                <span>✓</span> {pack.tagline}
+              <li className="flex items-center gap-2 text-green-700">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> {pack.tagline}
               </li>
-              <li className="flex gap-2 text-green-700">
-                <span>✓</span> {pack.contacts} contacts propriétaires
+              <li className="flex items-center gap-2 text-green-700">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> {pack.contacts} contacts propriétaires
               </li>
             </ul>
 

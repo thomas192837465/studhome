@@ -104,3 +104,46 @@ create policy "listing_photos_delete_temp" on storage.objects
 -- browser tab/session never push to other open tabs/sessions — they'd only see
 -- the update after a manual page reload.
 alter publication supabase_realtime add table public.listings;
+
+-- ============================================================================
+-- Migration 2: exact address (private, revealed only after unlock) + reviews
+-- ============================================================================
+
+alter table public.listings add column if not exists address text not null default '';
+
+create table if not exists public.reviews (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  author_name text not null,
+  rating integer not null check (rating between 1 and 5),
+  comment text not null default '',
+  status text not null default 'En attente'
+    check (status in ('En attente', 'Publié', 'Rejeté')),
+  moderation_reason text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reviews_listing_id_idx on public.reviews (listing_id);
+create index if not exists reviews_status_idx on public.reviews (status);
+
+alter table public.reviews enable row level security;
+
+drop policy if exists "reviews_select_all_temp" on public.reviews;
+drop policy if exists "reviews_insert_all_temp" on public.reviews;
+drop policy if exists "reviews_update_all_temp" on public.reviews;
+drop policy if exists "reviews_delete_all_temp" on public.reviews;
+
+-- TEMPORARY policies, same rationale as the listings table above.
+create policy "reviews_select_all_temp" on public.reviews
+  for select using (true);
+
+create policy "reviews_insert_all_temp" on public.reviews
+  for insert with check (true);
+
+create policy "reviews_update_all_temp" on public.reviews
+  for update using (true);
+
+create policy "reviews_delete_all_temp" on public.reviews
+  for delete using (true);
+
+alter publication supabase_realtime add table public.reviews;

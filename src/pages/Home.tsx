@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -12,10 +12,19 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faUserGroup,
+  faSchool,
+  faFileLines,
+  faGraduationCap,
+  faLocationDot,
+  faBuilding,
+} from "@fortawesome/free-solid-svg-icons";
 import heroRoom from "../assets/images/hero-room.jpg";
-import discoverHouse from "../assets/images/discover-house.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { CameroonFlag } from "../components/CameroonFlag";
+import { useListings } from "../context/ListingsContext";
 
 const cities = [
   "Yaoundé",
@@ -90,6 +99,21 @@ export function Home() {
   const navigate = useNavigate();
   const [ville, setVille] = useState("");
   const [universite, setUniversite] = useState("");
+  const { getPublicListings } = useListings();
+  const publicListings = getPublicListings();
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  const listingByCity = useMemo(() => {
+    const map = new Map<string, (typeof publicListings)[number]>();
+    for (const l of publicListings) {
+      const key = l.city.toLowerCase();
+      if (!map.has(key)) map.set(key, l);
+    }
+    return map;
+  }, [publicListings]);
+
+  const carouselListings = publicListings.slice(0, 8);
+  const activeCarouselListing = carouselListings[carouselIndex % Math.max(carouselListings.length, 1)];
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -173,9 +197,9 @@ export function Home() {
       <section className="mt-24 sm:mt-16">
         <div className="mx-auto max-w-5xl px-6">
           <div className="rounded-2xl bg-brand-blue-light px-6 py-5 flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
-            <Stat icon="👤" value="+1,5 million" label="utilisateurs satisfaits" />
-            <Stat icon="🏫" value="+180" label="écoles partenaires" />
-            <Stat icon="📄" value="+180 000" label="annonces vérifiées" />
+            <Stat icon={faUserGroup} value="+1,5 million" label="utilisateurs satisfaits" />
+            <Stat icon={faSchool} value="+180" label="écoles partenaires" />
+            <Stat icon={faFileLines} value="+180 000" label="annonces vérifiées" />
           </div>
         </div>
       </section>
@@ -183,20 +207,28 @@ export function Home() {
       {/* Cities */}
       <section className="mx-auto max-w-5xl px-6 mt-16">
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-          {cities.map((city, i) => (
-            <button
-              key={city}
-              onClick={() => navigate(`/logements?ville=${encodeURIComponent(city)}`)}
-              className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 flex items-end p-2 hover:opacity-90 transition-opacity"
-            >
-              {i === 0 && (
-                <img src={discoverHouse} alt={city} className="absolute inset-0 h-full w-full object-cover" />
-              )}
-              <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
-                {city}
-              </span>
-            </button>
-          ))}
+          {cities.map((city) => {
+            const match = listingByCity.get(city.toLowerCase());
+            return (
+              <button
+                key={city}
+                onClick={() => navigate(`/logements?ville=${encodeURIComponent(city)}`)}
+                className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-brand-blue-light to-gray-100 flex items-end p-2 hover:opacity-90 transition-opacity"
+              >
+                {match?.image ? (
+                  <img src={match.image} alt={city} className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <FontAwesomeIcon
+                    icon={faBuilding}
+                    className="absolute inset-0 m-auto h-7 w-7 text-brand-blue/30"
+                  />
+                )}
+                <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
+                  {city}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="mt-6 flex justify-center">
           <Link
@@ -224,29 +256,73 @@ export function Home() {
             </div>
           </div>
           <div className="hidden lg:flex justify-center">
-            <div className="h-56 w-56 rounded-full bg-white/60 flex items-center justify-center text-7xl">
-              🎓
+            <div className="h-56 w-56 rounded-full bg-white/60 flex items-center justify-center">
+              <FontAwesomeIcon icon={faGraduationCap} className="h-24 w-24 text-brand-blue" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Discover */}
+      {/* Discover carousel */}
       <section className="mx-auto max-w-3xl px-6 mt-20 text-center">
         <h2 className="font-display text-2xl font-bold text-brand-navy mb-6">
           Découvrez votre nouveau logement avec StudHome
         </h2>
-        <div className="relative rounded-2xl overflow-hidden aspect-[16/9]">
-          <img src={discoverHouse} alt="Logement" className="h-full w-full object-cover" />
-          <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-brand-blue/90 px-3 py-1 text-xs font-medium text-white">
-            📍 City
-          </span>
-          <button className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90">
-            <ChevronLeft size={16} />
-          </button>
-          <button className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90">
-            <ChevronRight size={16} />
-          </button>
+        <div className="relative rounded-2xl overflow-hidden aspect-[16/9] bg-gray-100">
+          {activeCarouselListing ? (
+            <Link to={`/logements/${activeCarouselListing.id}`}>
+              {activeCarouselListing.image ? (
+                <img
+                  src={activeCarouselListing.image}
+                  alt={activeCarouselListing.title}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-gray-300">
+                  <FontAwesomeIcon icon={faBuilding} className="h-12 w-12" />
+                </div>
+              )}
+            </Link>
+          ) : (
+            <div className="h-full w-full flex flex-col items-center justify-center gap-2 text-gray-400">
+              <FontAwesomeIcon icon={faBuilding} className="h-10 w-10" />
+              <p className="text-sm">Aucun logement publié pour l'instant</p>
+            </div>
+          )}
+          {activeCarouselListing && (
+            <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full bg-brand-blue/90 px-3 py-1 text-xs font-medium text-white">
+              <FontAwesomeIcon icon={faLocationDot} className="h-3 w-3" /> {activeCarouselListing.city}
+            </span>
+          )}
+          {carouselListings.length > 1 && (
+            <>
+              <button
+                onClick={() =>
+                  setCarouselIndex((i) => (i - 1 + carouselListings.length) % carouselListings.length)
+                }
+                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 hover:bg-white transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setCarouselIndex((i) => (i + 1) % carouselListings.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 hover:bg-white transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <div className="absolute bottom-3 right-3 flex gap-1">
+                {carouselListings.map((l, i) => (
+                  <button
+                    key={l.id}
+                    onClick={() => setCarouselIndex(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === carouselIndex % carouselListings.length ? "w-4 bg-white" : "w-1.5 bg-white/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <Link
           to="/logements"
@@ -345,10 +421,10 @@ export function Home() {
   );
 }
 
-function Stat({ icon, value, label }: { icon: string; value: string; label: string }) {
+function Stat({ icon, value, label }: { icon: typeof faUserGroup; value: string; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xl">{icon}</span>
+      <FontAwesomeIcon icon={icon} className="h-5 w-5 text-brand-blue" />
       <span className="text-left">
         <span className="block font-bold text-brand-navy leading-none">{value}</span>
         <span className="block text-xs text-gray-500">{label}</span>

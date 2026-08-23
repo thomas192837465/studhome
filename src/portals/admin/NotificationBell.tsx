@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, ClipboardList, AlertTriangle } from "lucide-react";
+import { Bell, ClipboardList, AlertTriangle, Star } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
+import { useReviews } from "../../context/ReviewsContext";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -18,6 +19,7 @@ function timeAgo(iso: string) {
 export function NotificationBell({ base }: { base: string }) {
   const { signalements } = useAdminPortal();
   const { listings } = useListings();
+  const { reviews } = useReviews();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -34,6 +36,9 @@ export function NotificationBell({ base }: { base: string }) {
     .filter((l) => l.status === "En attente")
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const openSignalements = signalements.filter((s) => s.statut !== "Résolu");
+  const pendingReviews = reviews
+    .filter((r) => r.status === "En attente")
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
   const items = [
     ...pendingListings.map((l) => ({
@@ -43,6 +48,14 @@ export function NotificationBell({ base }: { base: string }) {
       text: `Nouvelle annonce à vérifier : ${l.title}`,
       time: timeAgo(l.createdAt),
       onClick: () => navigate(`${base}/annonces/${l.id}`),
+    })),
+    ...pendingReviews.map((r) => ({
+      key: `review-${r.id}`,
+      icon: Star,
+      tone: "text-brand-orange bg-brand-orange-light",
+      text: `Nouvel avis de ${r.authorName} à modérer`,
+      time: timeAgo(r.createdAt),
+      onClick: () => navigate(`${base}/avis`),
     })),
     ...openSignalements.map((s) => ({
       key: `signalement-${s.id}`,

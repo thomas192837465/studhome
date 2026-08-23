@@ -83,7 +83,7 @@ function PaymentIcon({ id }: { id: string }) {
     orange: "bg-orange-500 text-white",
     visa: "bg-blue-800 text-white",
   };
-  const label: Record<string, string> = { mtn: "MTN", orange: "🍊", visa: "VISA" };
+  const label: Record<string, string> = { mtn: "MTN", orange: "OM", visa: "VISA" };
   return (
     <span className={`flex h-8 w-12 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${colors[id]}`}>
       {label[id]}

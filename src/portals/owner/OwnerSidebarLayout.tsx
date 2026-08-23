@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Home, Heart, BarChart3, User, LogOut } from "lucide-react";
 import { Logo } from "../../components/Logo";
+import { Avatar } from "../../components/Avatar";
 import { useOwner } from "../../context/OwnerContext";
 
 const navItems = [
@@ -40,9 +41,7 @@ export function OwnerSidebarLayout() {
         </nav>
         <div className="p-3 border-t border-gray-100">
           <div className="flex items-center gap-3 px-3.5 py-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue font-bold">
-              {ownerUser.fullName.charAt(0)}
-            </span>
+            <Avatar src={ownerUser.avatar} name={ownerUser.fullName} className="h-9 w-9" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-brand-navy truncate">{ownerUser.fullName}</p>
               <p className="text-xs text-gray-400">Propriétaire</p>

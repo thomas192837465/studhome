@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { Plus, ChevronRight } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHandPaper } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
 import { useListings } from "../../context/ListingsContext";
 import { listingStatusClass } from "../../data/listingStatus";
@@ -18,7 +20,9 @@ export function OwnerDashboard() {
     <div className="p-6 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-2xl font-bold text-brand-navy">Bonjour {firstName} 👋</h1>
+          <h1 className="font-display text-2xl font-bold text-brand-navy flex items-center gap-2">
+            Bonjour {firstName} <FontAwesomeIcon icon={faHandPaper} className="h-5 w-5 text-brand-orange" />
+          </h1>
           <p className="mt-1 text-sm text-gray-500">Voici un aperçu de vos performances.</p>
         </div>
         <Link

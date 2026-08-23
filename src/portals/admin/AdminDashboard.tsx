@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, AlertTriangle } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHandPaper } from "@fortawesome/free-solid-svg-icons";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
 import { activitesRecentes } from "../../data/adminSeed";
@@ -36,7 +38,9 @@ export function AdminDashboard() {
     <div className="p-6 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-2xl font-bold text-brand-navy">Bonjour {session?.name} 👋</h1>
+          <h1 className="font-display text-2xl font-bold text-brand-navy flex items-center gap-2">
+            Bonjour {session?.name} <FontAwesomeIcon icon={faHandPaper} className="h-5 w-5 text-brand-orange" />
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
             {isSuper ? "Voici un résumé complet de l'activité sur StudHome." : "Voici ce qui se passe aujourd'hui sur StudHome."}
           </p>

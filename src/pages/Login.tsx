@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHouse } from "@fortawesome/free-solid-svg-icons";
 import loginBedroom from "../assets/images/login-bedroom.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { Logo } from "../components/Logo";
@@ -119,7 +121,7 @@ export function Login() {
           <div className="mt-1 h-1 w-14 rounded-full bg-white/70" />
           <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-brand-navy text-sm shadow">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue">
-              🏠
+              <FontAwesomeIcon icon={faHouse} className="h-3 w-3" />
             </span>
             <span>
               <span className="font-bold text-brand-blue">+ 10 000</span> logements disponibles

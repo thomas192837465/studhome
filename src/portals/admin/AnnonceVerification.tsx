@@ -24,6 +24,7 @@ const checklist = [
   "Description complète",
   "Prix renseigné",
   "Ville et quartier renseignés",
+  "Adresse exacte renseignée",
   "Numéro WhatsApp valide",
 ];
 
@@ -50,6 +51,7 @@ export function AnnonceVerification() {
     listing.description.trim().length > 0,
     listing.price > 0,
     !!listing.city && !!listing.quartier,
+    !!listing.address,
     !!listing.ownerPhone,
   ];
 
@@ -107,6 +109,7 @@ export function AnnonceVerification() {
           <p className="mt-1 text-sm text-gray-500">
             {listing.city}, {listing.quartier}
           </p>
+          {listing.address && <p className="text-sm text-gray-500">{listing.address}</p>}
           <p className="text-sm text-gray-500">Université(s) : {listing.universities.join(", ") || "—"}</p>
 
           <div className="mt-4 rounded-xl border border-gray-100 p-4 flex items-center justify-between">

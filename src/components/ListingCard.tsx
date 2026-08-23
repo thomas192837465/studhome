@@ -1,4 +1,6 @@
 import { Heart } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import type { Listing } from "../data/listingTypes";
 import { useApp } from "../context/AppContext";
@@ -45,7 +47,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <p className="mt-1.5 text-sm text-gray-500">{listing.city}</p>
         {listing.universities.length > 0 && (
           <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-brand-green-light px-2.5 py-1 text-xs font-medium text-green-700">
-            🎓 {listing.universities[0]}
+            <FontAwesomeIcon icon={faGraduationCap} className="h-3 w-3" /> {listing.universities[0]}
           </div>
         )}
         <p className="mt-2.5 text-sm text-gray-500">{listing.type}</p>

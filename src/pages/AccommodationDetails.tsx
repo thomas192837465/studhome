@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLocationDot, faCircleCheck, faStar as faStarSolid } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
 import { useApp } from "../context/AppContext";
+import { useReviews } from "../context/ReviewsContext";
 import { MapPreview } from "../components/MapPreview";
+import { Avatar } from "../components/Avatar";
+import { StarRating } from "../components/StarRating";
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return (
@@ -30,9 +35,14 @@ export function AccommodationDetails() {
   const navigate = useNavigate();
   const { getListing, getListingsByOwner, recordView, adjustFavorite, recordUnlock } = useListings();
   const listing = id ? getListing(id) : undefined;
-  const { isAuthenticated, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
+  const { isAuthenticated, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
+  const { getPublishedForListing, submitReview } = useReviews();
   const [activeImg, setActiveImg] = useState(0);
   const [showToast, setShowToast] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     setActiveImg(0);
@@ -57,6 +67,25 @@ export function AccommodationDetails() {
   const unlocked = isUnlocked(listing.id);
   const fav = isFavorite(listing.id);
   const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
+  const publishedReviews = getPublishedForListing(listing.id);
+  const avgRating = publishedReviews.length
+    ? publishedReviews.reduce((s, r) => s + r.rating, 0) / publishedReviews.length
+    : 0;
+  const authorName = `${user.firstName} ${user.lastName}`.trim();
+  const alreadyReviewed = publishedReviews.some((r) => r.authorName === authorName);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reviewRating === 0) {
+      setReviewError("Choisissez une note avant d'envoyer votre avis.");
+      return;
+    }
+    setReviewError("");
+    await submitReview(listing.id, authorName || "Étudiant StudHome", reviewRating, reviewComment);
+    setReviewSubmitted(true);
+    setReviewRating(0);
+    setReviewComment("");
+  };
 
   const handleToggleFavorite = () => {
     if (!isAuthenticated) return;
@@ -189,13 +218,94 @@ export function AccommodationDetails() {
               )}
             </div>
           </div>
+
+          <div className="mt-8">
+            <h2 className="font-display text-lg font-bold text-brand-navy mb-3">
+              Avis des étudiants {publishedReviews.length > 0 && `(${publishedReviews.length})`}
+            </h2>
+
+            {publishedReviews.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucun avis pour l'instant sur ce logement.</p>
+            ) : (
+              <div className="space-y-4 mb-6">
+                {publishedReviews.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-gray-100 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-brand-navy text-sm">{r.authorName}</p>
+                      <StarRating value={r.rating} size="h-3.5 w-3.5" />
+                    </div>
+                    {r.comment && <p className="mt-1.5 text-sm text-gray-600">{r.comment}</p>}
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      {new Date(r.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isAuthenticated ? (
+              <p className="text-sm text-gray-400">
+                <Link to="/connexion" className="text-brand-blue font-semibold">
+                  Connectez-vous
+                </Link>{" "}
+                pour laisser un avis.
+              </p>
+            ) : !unlocked ? (
+              <p className="text-sm text-gray-400">
+                Débloquez le contact du propriétaire pour pouvoir laisser un avis sur ce logement.
+              </p>
+            ) : alreadyReviewed || reviewSubmitted ? (
+              <p className="flex items-center gap-1.5 text-sm text-brand-green font-medium">
+                <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Merci, votre avis a été envoyé et sera
+                visible après validation par notre équipe.
+              </p>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="rounded-xl border border-gray-100 p-4">
+                <p className="text-sm font-semibold text-brand-navy mb-2">Laisser un avis</p>
+                <StarRating value={reviewRating} onChange={setReviewRating} size="h-5 w-5" />
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Partagez votre expérience avec ce logement..."
+                  rows={3}
+                  className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+                {reviewError && <p className="mt-1.5 text-xs text-red-500">{reviewError}</p>}
+                <button
+                  type="submit"
+                  className="mt-3 rounded-xl bg-brand-blue px-5 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+                >
+                  Envoyer l'avis
+                </button>
+              </form>
+            )}
+          </div>
         </div>
 
         <div className="space-y-5">
           <div className="rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h1 className="font-display text-xl font-bold text-brand-navy">{listing.title}</h1>
-            <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
-              📍 {listing.city}, {listing.quartier}
+            {publishedReviews.length > 0 && (
+              <p className="mt-1 flex items-center gap-1.5 text-sm">
+                <FontAwesomeIcon icon={faStarSolid} className="h-3.5 w-3.5 text-brand-orange" />
+                <span className="font-semibold text-brand-navy">{avgRating.toFixed(1)}</span>
+                <span className="text-gray-400">
+                  ({publishedReviews.length} avis)
+                </span>
+              </p>
+            )}
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
+              <FontAwesomeIcon icon={faLocationDot} className="h-3.5 w-3.5" /> {listing.city}, {listing.quartier}
+            </p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm">
+              {unlocked ? (
+                <span className="text-brand-navy font-medium">{listing.address}</span>
+              ) : (
+                <>
+                  <Lock size={12} className="text-gray-400" />
+                  <span className="text-gray-400">Adresse exacte visible après déblocage du contact</span>
+                </>
+              )}
             </p>
             <p className="mt-3">
               <span className="font-display text-2xl font-bold text-brand-blue">
@@ -222,7 +332,9 @@ export function AccommodationDetails() {
               }`}
             >
               {unlocked ? (
-                "Propriétaire débloqué ✓"
+                <>
+                  Propriétaire débloqué <FontAwesomeIcon icon={faCircleCheck} className="h-3.5 w-3.5" />
+                </>
               ) : (
                 <>
                   Contacter le propriétaire
@@ -244,17 +356,7 @@ export function AccommodationDetails() {
             <h3 className="font-semibold text-brand-navy mb-3">Propriétaire</h3>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {listing.ownerAvatarImg ? (
-                  <img
-                    src={listing.ownerAvatarImg}
-                    alt={listing.ownerName}
-                    className="h-11 w-11 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue font-bold">
-                    {listing.ownerName.charAt(0)}
-                  </span>
-                )}
+                <Avatar src={listing.ownerAvatarImg} name={listing.ownerName} className="h-11 w-11" />
                 <div>
                   <p className="font-semibold text-brand-navy">{listing.ownerName}</p>
                   <p className="text-sm text-gray-500">

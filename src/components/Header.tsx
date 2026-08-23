@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Heart, ChevronDown, ChevronUp, User, CreditCard, Clock, Shield, LogOut } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCoins } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "./Logo";
 import { CameroonFlag } from "./CameroonFlag";
+import { Avatar } from "./Avatar";
 import { useApp } from "../context/AppContext";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -73,9 +76,7 @@ export function Header() {
                 to="/credits/achat"
                 className="hidden sm:flex items-center gap-1.5 rounded-full border border-brand-orange/40 bg-brand-orange-light text-brand-orange-dark px-3 py-1.5 text-sm font-semibold hover:bg-brand-orange/10 transition-colors"
               >
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-orange text-white text-[10px]">
-                  $
-                </span>
+                <FontAwesomeIcon icon={faCoins} className="h-3.5 w-3.5" />
                 {credits} crédits
               </Link>
 
@@ -84,22 +85,14 @@ export function Header() {
                   onClick={() => setMenuOpen((o) => !o)}
                   className="flex items-center gap-1.5 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-gray-50"
                 >
-                  <img
-                    src={user.avatar}
-                    alt={user.firstName}
-                    className="h-9 w-9 rounded-full object-cover"
-                  />
+                  <Avatar src={user.avatar} name={user.firstName} className="h-9 w-9" />
                   {menuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
 
                 {menuOpen && (
                   <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden">
                     <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
-                      <img
-                        src={user.avatar}
-                        alt={user.firstName}
-                        className="h-11 w-11 rounded-full object-cover"
-                      />
+                      <Avatar src={user.avatar} name={user.firstName} className="h-11 w-11" />
                       <div>
                         <p className="font-semibold text-brand-navy leading-tight">
                           {user.firstName} {user.lastName}

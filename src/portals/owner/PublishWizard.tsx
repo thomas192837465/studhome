@@ -1,40 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
 import { useListings } from "../../context/ListingsContext";
+import { resizeImageFile } from "../../lib/resizeImage";
 import type { ListingDraft } from "../../data/listingTypes";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
 const MAX_PHOTOS = 15;
-const MAX_DIMENSION = 1600;
-
-function resizeImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Image invalide"));
-      img.onload = () => {
-        const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(reader.result as string);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 const typeOptions = [
   { id: "Chambre", icon: Bed, desc: "Chambre simple avec accès aux espaces communs" },
@@ -83,6 +59,7 @@ export function PublishWizard() {
         type: editingListing.type,
         ville: editingListing.city,
         quartier: editingListing.quartier,
+        address: editingListing.address,
         universities: editingListing.universities,
         description: editingListing.description,
         equipements: editingListing.equipements,
@@ -113,7 +90,7 @@ export function PublishWizard() {
     if (toProcess.length === 0) return;
     setUploading(true);
     try {
-      const resized = await Promise.all(toProcess.map(resizeImageFile));
+      const resized = await Promise.all(toProcess.map((file) => resizeImageFile(file)));
       updateDraft({ photos: [...draft.photos, ...resized] });
     } finally {
       setUploading(false);
@@ -226,6 +203,21 @@ export function PublishWizard() {
                 </select>
               </label>
             </div>
+
+            <label className="block mt-4">
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Adresse exacte *</span>
+              <input
+                value={draft.address}
+                onChange={(e) => updateDraft({ address: e.target.value })}
+                placeholder="Ex : Rue 1.234, derrière la pharmacie du Carrefour, Bastos"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+              <span className="mt-1 flex items-start gap-1.5 text-xs text-gray-400">
+                <Info size={13} className="mt-0.5 shrink-0" />
+                Cette adresse ne sera visible par un étudiant qu'après avoir débloqué le contact (payant). Elle
+                n'apparaît jamais publiquement.
+              </span>
+            </label>
 
             <label className="block mt-4">
               <span className="mb-1.5 block text-sm font-medium text-brand-navy">Université(s) à proximité</span>
@@ -358,11 +350,20 @@ export function PublishWizard() {
               </div>
             )}
 
-            <div className="mt-6 rounded-xl bg-brand-blue-light p-4 text-xs text-gray-600 space-y-1">
+            <div className="mt-6 rounded-xl bg-brand-blue-light p-4 text-xs text-gray-600 space-y-1.5">
               <p className="font-semibold text-brand-navy text-sm mb-1">Conseils pour de bonnes photos</p>
-              <p>✓ Prenez des photos nettes et lumineuses</p>
-              <p>✓ Montrez la chambre, la salle d'eau, la cuisine et l'extérieur</p>
-              <p>✓ Évitez les photos floues ou sombres</p>
+              <p className="flex items-center gap-1.5">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-brand-green" /> Prenez des photos nettes et
+                lumineuses
+              </p>
+              <p className="flex items-center gap-1.5">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-brand-green" /> Montrez la chambre, la salle
+                d'eau, la cuisine et l'extérieur
+              </p>
+              <p className="flex items-center gap-1.5">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-brand-green" /> Évitez les photos floues ou
+                sombres
+              </p>
             </div>
           </div>
         )}
@@ -545,7 +546,15 @@ export function PublishWizard() {
               </button>
               <button
                 onClick={next}
-                disabled={step === 1 ? !draft.type : step === 3 ? draft.photos.length === 0 : false}
+                disabled={
+                  step === 1
+                    ? !draft.type
+                    : step === 2
+                      ? !draft.ville || !draft.quartier || !draft.address.trim()
+                      : step === 3
+                        ? draft.photos.length === 0
+                        : false
+                }
                 className="rounded-xl bg-brand-blue px-6 py-2.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Suivant →

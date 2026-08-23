@@ -13,6 +13,7 @@ export interface Listing {
   type: string;
   city: string;
   quartier: string;
+  address: string;
   universities: string[];
   price: number;
   period: "mois" | "an";
@@ -45,6 +46,7 @@ export interface ListingDraft {
   type: string;
   ville: string;
   quartier: string;
+  address: string;
   universities: string[];
   description: string;
   equipements: string[];
@@ -59,6 +61,7 @@ export const emptyDraft: ListingDraft = {
   type: "",
   ville: "",
   quartier: "",
+  address: "",
   universities: [],
   description: "",
   equipements: [],

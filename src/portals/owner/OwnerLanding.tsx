@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ShieldCheck, Users, Clock, PlayCircle, UserPlus2, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHandPaper } from "@fortawesome/free-solid-svg-icons";
 import { OwnerPublicHeader } from "./OwnerPublicHeader";
 import { Footer } from "../../components/Footer";
 import { useOwner } from "../../context/OwnerContext";
@@ -84,7 +86,9 @@ export function OwnerLanding() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue">
               <UserPlus2 size={28} />
             </div>
-            <h3 className="font-display text-xl font-bold text-brand-navy">Bienvenue sur StudHome 👋</h3>
+            <h3 className="font-display text-xl font-bold text-brand-navy flex items-center justify-center gap-2">
+              Bienvenue sur StudHome <FontAwesomeIcon icon={faHandPaper} className="h-4 w-4 text-brand-orange" />
+            </h3>
             <p className="mt-2 text-sm text-gray-500">
               Pour publier votre logement, vous devez disposer d'un compte.
             </p>

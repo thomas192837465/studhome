@@ -1,5 +1,4 @@
 import type { Transaction, User } from "./types";
-import avatarImg from "../assets/images/avatar-student-header.jpg";
 
 export const defaultUser: User = {
   firstName: "Awa",
@@ -9,7 +8,7 @@ export const defaultUser: User = {
   city: "Yaoundé",
   university: "Université de Yaoundé I",
   bio: "Etudiant en droit passionné par le droit.",
-  avatar: avatarImg,
+  avatar: "",
   role: "Etudiante",
   referralCode: "AWA123",
 };

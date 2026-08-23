@@ -43,6 +43,7 @@ import { Statistiques } from "./portals/admin/Statistiques";
 import { Administrateurs } from "./portals/admin/Administrateurs";
 import { RolesPermissions } from "./portals/admin/RolesPermissions";
 import { LogsActivite } from "./portals/admin/LogsActivite";
+import { Avis } from "./portals/admin/Avis";
 import { AdminPlaceholder } from "./portals/admin/AdminPlaceholder";
 import { Users, GraduationCap, MessageSquare, Settings } from "lucide-react";
 
@@ -57,6 +58,7 @@ function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
           <Route path={`/${base}/annonces/:id`} element={<AnnonceVerification />} />
           <Route path={`/${base}/annonces/:id/modifications`} element={<DemandeModifications />} />
           <Route path={`/${base}/annonces/:id/publiee`} element={<AnnoncePublieeConfirmation />} />
+          <Route path={`/${base}/avis`} element={<Avis />} />
           <Route path={`/${base}/signalements`} element={<Signalements />} />
           <Route path={`/${base}/paiements`} element={<Paiements />} />
           <Route path={`/${base}/statistiques`} element={<Statistiques />} />

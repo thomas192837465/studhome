@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { User as UserIcon, Camera } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { useApp } from "../context/AppContext";
+import { Avatar } from "../components/Avatar";
+import { resizeImageFile } from "../lib/resizeImage";
 
 export function Profile() {
   const { isAuthenticated, user, credits, updateUser } = useApp();
   const [form, setForm] = useState(user);
   const [saved, setSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
 
@@ -22,6 +27,15 @@ export function Profile() {
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const resized = await resizeImageFile(file, 400, 0.85);
+    setForm((f) => ({ ...f, avatar: resized }));
+    updateUser({ avatar: resized });
+    e.target.value = "";
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-10 py-10">
       <div className="flex items-center gap-3 mb-2">
@@ -33,10 +47,12 @@ export function Profile() {
       <div className="grid lg:grid-cols-[240px_1fr] gap-10">
         <div>
           <div className="relative w-fit">
-            <img src={user.avatar} alt={user.firstName} className="h-28 w-28 rounded-full object-cover" />
+            <Avatar src={form.avatar} name={form.firstName} className="h-28 w-28" textClassName="text-3xl" />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             <button
               type="button"
-              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-white"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue-dark transition-colors"
             >
               <Camera size={14} />
             </button>
@@ -97,7 +113,11 @@ export function Profile() {
             >
               Annuler
             </button>
-            {saved && <span className="text-sm font-medium text-brand-green">Modifications enregistrées ✓</span>}
+            {saved && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-brand-green">
+                <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Modifications enregistrées
+              </span>
+            )}
           </div>
         </form>
       </div>

@@ -1,16 +1,32 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
 import { CameroonFlag } from "../../components/CameroonFlag";
+import { Avatar } from "../../components/Avatar";
+import { resizeImageFile } from "../../lib/resizeImage";
 
 export function OwnerProfile() {
-  const { ownerUser } = useOwner();
+  const { ownerUser, updateOwnerUser } = useOwner();
   const [form, setForm] = useState(ownerUser);
   const [saved, setSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    updateOwnerUser(form);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const resized = await resizeImageFile(file, 400, 0.85);
+    setForm((f) => ({ ...f, avatar: resized }));
+    updateOwnerUser({ avatar: resized });
+    e.target.value = "";
   };
 
   return (
@@ -18,10 +34,16 @@ export function OwnerProfile() {
       <h1 className="font-display text-2xl font-bold text-brand-navy mb-1">Profil</h1>
       <p className="text-sm text-gray-500 mb-8">Gérez vos informations propriétaire.</p>
 
-      <div className="mx-auto w-fit mb-6">
-        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue text-2xl font-bold">
-          {form.fullName.charAt(0)}
-        </span>
+      <div className="relative mx-auto w-fit mb-6">
+        <Avatar src={form.avatar} name={form.fullName} className="h-20 w-20" textClassName="text-2xl" />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-brand-blue text-white hover:bg-brand-blue-dark transition-colors"
+        >
+          <Camera size={13} />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,7 +72,11 @@ export function OwnerProfile() {
         >
           Enregistrer
         </button>
-        {saved && <p className="text-center text-sm font-medium text-brand-green">Modifications enregistrées ✓</p>}
+        {saved && (
+          <p className="flex items-center justify-center gap-1.5 text-center text-sm font-medium text-brand-green">
+            <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Modifications enregistrées
+          </p>
+        )}
       </form>
     </div>
   );

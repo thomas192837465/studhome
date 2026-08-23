@@ -41,6 +41,7 @@ export function OwnerListingDetail() {
       <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
         <MapPin size={14} /> {listing.city}, {listing.quartier}
       </p>
+      {listing.address && <p className="mt-1 text-sm text-gray-500">{listing.address}</p>}
       <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
         <GraduationCap size={14} /> {listing.universities.join(", ") || "—"}
       </p>

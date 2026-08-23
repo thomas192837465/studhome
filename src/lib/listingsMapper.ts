@@ -7,6 +7,7 @@ export interface ListingRow {
   type: string;
   city: string;
   quartier: string;
+  address: string;
   universities: string[];
   price: number;
   period: string;
@@ -39,6 +40,7 @@ export function rowToListing(row: ListingRow): Listing {
     type: row.type,
     city: row.city,
     quartier: row.quartier,
+    address: row.address ?? "",
     universities: row.universities ?? [],
     price: row.price,
     period: row.period as Listing["period"],

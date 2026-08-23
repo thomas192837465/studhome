@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLocationDot, faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
 import { ListingCard } from "../components/ListingCard";
 
@@ -60,7 +62,7 @@ export function Listings() {
       {/* search bar */}
       <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 grid sm:grid-cols-[1fr_1fr_auto] gap-3">
         <div className="rounded-xl bg-white border border-gray-200 px-4 py-2.5 flex items-center gap-2">
-          <span className="text-gray-400">📍</span>
+          <FontAwesomeIcon icon={faLocationDot} className="h-4 w-4 text-gray-400" />
           <div className="flex-1">
             <p className="text-[11px] text-gray-400">Ville</p>
             <input
@@ -72,7 +74,7 @@ export function Listings() {
           </div>
         </div>
         <div className="rounded-xl bg-white border border-gray-200 px-4 py-2.5 flex items-center gap-2">
-          <span className="text-gray-400">🎓</span>
+          <FontAwesomeIcon icon={faGraduationCap} className="h-4 w-4 text-gray-400" />
           <div className="flex-1">
             <p className="text-[11px] text-gray-400">Université/Ecole</p>
             <input

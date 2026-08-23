@@ -33,6 +33,7 @@ interface OwnerContextValue {
   draft: ListingDraft;
   login: (user?: Partial<OwnerUser>) => void;
   logout: () => void;
+  updateOwnerUser: (patch: Partial<OwnerUser>) => void;
   updateDraft: (patch: Partial<ListingDraft>) => void;
   resetDraft: () => void;
   submitDraft: () => Promise<string>;
@@ -56,6 +57,9 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
 
   const logout = () => setState((s) => ({ ...s, isOwnerAuthenticated: false }));
 
+  const updateOwnerUser = (patch: Partial<OwnerUser>) =>
+    setState((s) => ({ ...s, ownerUser: { ...s.ownerUser, ...patch } }));
+
   const updateDraft = (patch: Partial<ListingDraft>) =>
     setState((s) => ({ ...s, draft: { ...s.draft, ...patch } }));
 
@@ -67,6 +71,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       id: owner.phone,
       name: owner.fullName,
       phone: owner.phone,
+      avatarImg: owner.avatar,
       memberSince: owner.memberSince ?? new Date().toISOString(),
     });
     setState((s) => ({ ...s, draft: emptyDraft }));
@@ -80,6 +85,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       draft: state.draft,
       login,
       logout,
+      updateOwnerUser,
       updateDraft,
       resetDraft,
       submitDraft,

@@ -13,24 +13,29 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
+  Star,
 } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
+import { useReviews } from "../../context/ReviewsContext";
 import { NotificationBell } from "./NotificationBell";
 
 export function AdminLayout() {
   const { session, signalements, logout } = useAdminPortal();
   const { listings } = useListings();
+  const { reviews } = useReviews();
   const navigate = useNavigate();
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";
 
   const pendingCount = listings.filter((l) => l.status === "En attente").length;
   const signalementsCount = signalements.filter((s) => s.statut !== "Résolu").length;
+  const pendingReviewsCount = reviews.filter((r) => r.status === "En attente").length;
 
   const navItems = [
     { to: `${base}/tableau-de-bord`, label: "Dashboard", icon: Home, end: true },
     { to: `${base}/annonces`, label: "Annonces", icon: ClipboardList, badge: pendingCount },
+    { to: `${base}/avis`, label: "Avis", icon: Star, badge: pendingReviewsCount },
     { to: `${base}/proprietaires`, label: "Propriétaires", icon: Users },
     { to: `${base}/etudiants`, label: "Étudiants", icon: GraduationCap },
     { to: `${base}/paiements`, label: "Paiements", icon: CreditCard },
