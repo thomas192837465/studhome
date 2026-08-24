@@ -6,6 +6,7 @@ import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { useApp } from "../context/AppContext";
 import { Avatar } from "../components/Avatar";
 import { resizeImageFile } from "../lib/resizeImage";
+import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
 
 export function Profile() {
   const { isAuthenticated, authLoading, user, credits, updateUser } = useApp();
@@ -21,7 +22,7 @@ export function Profile() {
   if (authLoading) return null;
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
 
-  const handleChange = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     setSaved(false);
   };
@@ -92,8 +93,13 @@ export function Profile() {
             <Field label="Nom" value={form.lastName} onChange={handleChange("lastName")} />
             <Field label="Email" type="email" value={form.email} onChange={handleChange("email")} />
             <Field label="Téléphone" value={form.phone} onChange={handleChange("phone")} />
-            <Field label="Ville" value={form.city} onChange={handleChange("city")} />
-            <Field label="Université" value={form.university} onChange={handleChange("university")} />
+            <SelectField label="Ville" value={form.city} onChange={handleChange("city")} options={cameroonCities} />
+            <SelectField
+              label="Université"
+              value={form.university}
+              onChange={handleChange("university")}
+              options={cameroonUniversities}
+            />
           </div>
           <label className="block">
             <span className="mb-1.5 block text-sm text-gray-500">Bio</span>
@@ -151,6 +157,36 @@ function Field({
         onChange={onChange}
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
       />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm text-gray-500">{label}</span>
+      <select
+        value={value}
+        onChange={onChange}
+        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+      >
+        <option value="">Sélectionner...</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

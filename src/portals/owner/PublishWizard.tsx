@@ -7,6 +7,7 @@ import { useOwner } from "../../context/OwnerContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
 import type { ListingDraft } from "../../data/listingTypes";
+import { cameroonCities, quartiersByVille, cameroonUniversities } from "../../data/cameroonLocations";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
@@ -20,21 +21,8 @@ const typeOptions = [
   { id: "Colocation", icon: Users2, desc: "Chambre en colocation (plusieurs occupants)" },
 ];
 
-const villes = ["Yaoundé", "Douala", "Bafoussam", "Maroua", "Buea"];
-const quartiersByVille: Record<string, string[]> = {
-  Yaoundé: ["Elig-Essono", "Bastos", "Mvan", "Nkolbisson", "Ngoa-Ekelle"],
-  Douala: ["Bonapriso", "Bonamoussadi", "Akwa"],
-  Bafoussam: ["Centre-ville", "Tamdja"],
-  Maroua: ["Domayo", "Kongola"],
-  Buea: ["Molyko", "Great Soppo"],
-};
-const universitesOptions = [
-  "Université de Yaoundé 1",
-  "École Normale Supérieure",
-  "Université de Douala",
-  "Université de Maroua",
-  "Université de Buea",
-];
+const villes = cameroonCities;
+const universitesOptions = cameroonUniversities;
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
 
 export function PublishWizard() {

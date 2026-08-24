@@ -35,8 +35,23 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
 }
 
 function maskPhone(phone: string) {
-  const digits = phone.split(" ");
-  return digits.map((d, i) => (i === 0 || i === digits.length - 1 ? d : "••")).join(" ");
+  // Masks digit characters in place regardless of formatting (spaces,
+  // dashes, or none at all) — a plain split(" ") silently failed to mask
+  // anything when the owner typed their number without spaces.
+  const digitPositions: number[] = [];
+  for (let i = 0; i < phone.length; i++) {
+    if (/\d/.test(phone[i])) digitPositions.push(i);
+  }
+  const total = digitPositions.length;
+  if (total <= 5) return phone;
+  const visibleStart = 3;
+  const visibleEnd = 2;
+  const chars = phone.split("");
+  digitPositions.forEach((charIndex, digitPos) => {
+    const isVisible = digitPos < visibleStart || digitPos >= total - visibleEnd;
+    if (!isVisible) chars[charIndex] = "•";
+  });
+  return chars.join("");
 }
 
 export function AccommodationDetails() {

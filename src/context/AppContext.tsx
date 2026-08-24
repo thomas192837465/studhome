@@ -27,7 +27,7 @@ function profileToUser(row: ProfileRow): User {
     university: row.university,
     bio: row.bio,
     avatar: row.avatar,
-    role: "Etudiant",
+    role: row.role === "proprietaire" ? "Propriétaire" : "Etudiant",
     referralCode: row.referral_code || makeReferralCode(row.first_name),
   };
 }

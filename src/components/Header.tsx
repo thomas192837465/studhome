@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Heart, ChevronDown, ChevronUp, User, CreditCard, Clock, Shield, LogOut } from "lucide-react";
+import { Heart, ChevronDown, ChevronUp, User, CreditCard, Clock, Shield, LogOut, Building2 } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCoins } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "./Logo";
@@ -60,6 +60,14 @@ export function Header() {
           <NavLink to="/contact" className={navLinkClass}>
             Contact
           </NavLink>
+          {isAuthenticated && user.role === "Propriétaire" && (
+            <Link
+              to="/proprietaire/tableau-de-bord"
+              className="flex items-center gap-1.5 rounded-full bg-brand-navy px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-navy/90 transition-colors"
+            >
+              <Building2 size={15} /> Passer en mode propriétaire
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2.5 sm:gap-3">

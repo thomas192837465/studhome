@@ -25,6 +25,7 @@ import heroRoom from "../assets/images/hero-room.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { CameroonFlag } from "../components/CameroonFlag";
 import { useListings } from "../context/ListingsContext";
+import { cameroonUniversities } from "../data/cameroonLocations";
 
 const cities = [
   "Yaoundé",
@@ -112,6 +113,24 @@ export function Home() {
     return map;
   }, [publicListings]);
 
+  // Up to 10 city slots: cities with a real listing come first, most recently
+  // active first — once 10 are filled, a new city bumps out the one that has
+  // gone longest without a new listing. Remaining slots (if any) fall back to
+  // the default city list as empty placeholders.
+  const displayCities = useMemo(() => {
+    const latestByCity = new Map<string, string>();
+    for (const l of publicListings) {
+      const prev = latestByCity.get(l.city);
+      if (!prev || l.createdAt > prev) latestByCity.set(l.city, l.createdAt);
+    }
+    const activeCities = Array.from(latestByCity.entries())
+      .sort((a, b) => (a[1] < b[1] ? 1 : -1))
+      .map(([city]) => city)
+      .slice(0, 10);
+    const placeholders = cities.filter((c) => !activeCities.includes(c));
+    return [...activeCities, ...placeholders].slice(0, 10);
+  }, [publicListings]);
+
   const carouselListings = publicListings.slice(0, 8);
   const activeCarouselListing = carouselListings[carouselIndex % Math.max(carouselListings.length, 1)];
 
@@ -161,12 +180,16 @@ export function Home() {
             <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Ville</label>
-                <input
+                <select
                   value={ville}
                   onChange={(e) => setVille(e.target.value)}
-                  placeholder="Ex : City"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                />
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                >
+                  <option value="">Toutes les villes</option>
+                  {cities.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Université / Ecole</label>
@@ -176,10 +199,9 @@ export function Home() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
                 >
                   <option value="">Université / Ecole</option>
-                  <option>Université de Yaoundé I</option>
-                  <option>Université de Douala</option>
-                  <option>Université de Maroua</option>
-                  <option>Université de Buea</option>
+                  {cameroonUniversities.map((u) => (
+                    <option key={u}>{u}</option>
+                  ))}
                 </select>
               </div>
               <button
@@ -207,7 +229,7 @@ export function Home() {
       {/* Cities */}
       <section className="mx-auto max-w-5xl px-6 mt-16">
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-          {cities.map((city) => {
+          {displayCities.map((city) => {
             const match = listingByCity.get(city.toLowerCase());
             return (
               <button
@@ -223,9 +245,15 @@ export function Home() {
                     className="absolute inset-0 m-auto h-7 w-7 text-brand-blue/30"
                   />
                 )}
-                <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
-                  {city}
-                </span>
+                {match ? (
+                  <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
+                    {city}
+                  </span>
+                ) : (
+                  <span className="relative w-full py-1 text-center text-xs font-medium text-gray-400">
+                    {city}
+                  </span>
+                )}
               </button>
             );
           })}

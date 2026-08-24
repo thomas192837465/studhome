@@ -28,6 +28,6 @@ export interface User {
   university: string;
   bio: string;
   avatar: string;
-  role: "Etudiant" | "Etudiante";
+  role: "Etudiant" | "Propriétaire";
   referralCode: string;
 }

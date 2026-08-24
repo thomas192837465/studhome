@@ -142,7 +142,11 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     if (!authUser) throw new Error("Vérification impossible, réessayez.");
     const profile = await fetchProfile(authUser.id);
     if (profile && profile.role !== "proprietaire") {
-      await supabase.auth.signOut();
+      // Don't sign out here — verifying this OTP may have simply re-confirmed
+      // the user's own already-active session (e.g. they tried the owner
+      // signup with their existing student email). Signing out would kill a
+      // perfectly valid session in every open tab for no reason; we just
+      // decline to grant owner access.
       throw new Error("Cette adresse email est déjà associée à un compte étudiant.");
     }
     setAuthUserId(authUser.id);
