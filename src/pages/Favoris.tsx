@@ -6,10 +6,11 @@ import { ListingCard } from "../components/ListingCard";
 import { useApp } from "../context/AppContext";
 
 export function Favoris() {
-  const { isAuthenticated, favorites, toggleFavorite } = useApp();
+  const { isAuthenticated, authLoading, favorites, toggleFavorite } = useApp();
   const { listings, adjustFavorite } = useListings();
   const [page, setPage] = useState(1);
 
+  if (authLoading) return null;
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
 
   const favListings = listings.filter((l) => favorites.includes(l.id));

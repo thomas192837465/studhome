@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
@@ -8,10 +8,15 @@ import { Avatar } from "../../components/Avatar";
 import { resizeImageFile } from "../../lib/resizeImage";
 
 export function OwnerProfile() {
-  const { ownerUser, updateOwnerUser } = useOwner();
+  const { ownerUser, authLoading, updateOwnerUser } = useOwner();
   const [form, setForm] = useState(ownerUser);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!authLoading) setForm(ownerUser);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

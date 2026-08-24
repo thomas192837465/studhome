@@ -10,9 +10,10 @@ const shareChannels = [
 ];
 
 export function Parrainage() {
-  const { isAuthenticated, user } = useApp();
+  const { isAuthenticated, authLoading, user } = useApp();
   const [copied, setCopied] = useState(false);
 
+  if (authLoading) return null;
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
 
   const handleCopy = () => {

@@ -7,9 +7,9 @@ import { useListings } from "../../context/ListingsContext";
 import { listingStatusClass } from "../../data/listingStatus";
 
 export function OwnerDashboard() {
-  const { ownerUser } = useOwner();
+  const { ownerId, ownerUser } = useOwner();
   const { getListingsByOwner } = useListings();
-  const listings = getListingsByOwner(ownerUser.phone);
+  const listings = getListingsByOwner(ownerId ?? "");
   const firstName = ownerUser.fullName.split(" ")[0];
 
   const enAttente = listings.filter((l) => l.status === "En attente").length;

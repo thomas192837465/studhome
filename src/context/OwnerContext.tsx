@@ -2,37 +2,59 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { ListingDraft } from "../data/listingTypes";
 import { emptyDraft } from "../data/listingTypes";
 import type { OwnerUser } from "../data/ownerTypes";
-import { defaultOwnerUser } from "../data/ownerSeed";
+import { supabase } from "../lib/supabase";
+import type { ProfileRow } from "../lib/profileMapper";
 import { useListings } from "./ListingsContext";
 
-interface PersistedOwnerState {
-  isOwnerAuthenticated: boolean;
-  ownerUser: OwnerUser;
+const emptyOwnerUser: OwnerUser = { fullName: "", phone: "", memberSince: new Date().toISOString(), avatar: "" };
+
+function profileToOwnerUser(row: ProfileRow): OwnerUser {
+  return {
+    fullName: `${row.first_name} ${row.last_name}`.trim() || "Propriétaire",
+    phone: row.phone,
+    memberSince: row.created_at,
+    avatar: row.avatar,
+  };
+}
+
+async function fetchProfile(id: string): Promise<ProfileRow | null> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    if (data) return data as ProfileRow;
+    if (error) break;
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  return null;
+}
+
+interface LocalOwnerState {
   draft: ListingDraft;
 }
 
 const STORAGE_KEY = "studhome-owner-state-v2";
 
-function loadState(): PersistedOwnerState {
+function loadLocalState(): LocalOwnerState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PersistedOwnerState;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { draft: parsed.draft ?? emptyDraft };
+    }
   } catch {
     // ignore
   }
-  return {
-    isOwnerAuthenticated: false,
-    ownerUser: defaultOwnerUser,
-    draft: emptyDraft,
-  };
+  return { draft: emptyDraft };
 }
 
 interface OwnerContextValue {
   isOwnerAuthenticated: boolean;
+  authLoading: boolean;
+  ownerId: string | null;
   ownerUser: OwnerUser;
   draft: ListingDraft;
-  login: (user?: Partial<OwnerUser>) => void;
-  logout: () => void;
+  sendOtp: (email: string, meta?: { fullName?: string; phone?: string }) => Promise<void>;
+  verifyOtp: (email: string, token: string) => Promise<void>;
+  logout: () => Promise<void>;
   updateOwnerUser: (patch: Partial<OwnerUser>) => void;
   updateDraft: (patch: Partial<ListingDraft>) => void;
   resetDraft: () => void;
@@ -42,55 +64,137 @@ interface OwnerContextValue {
 const OwnerContext = createContext<OwnerContextValue | null>(null);
 
 export function OwnerProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedOwnerState>(loadState);
+  const [local, setLocal] = useState<LocalOwnerState>(loadLocalState);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isOwnerAuthenticated, setIsOwnerAuthenticated] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [ownerUser, setOwnerUser] = useState<OwnerUser>(emptyOwnerUser);
   const { submitListing } = useListings();
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
+  }, [local]);
 
-  const login = (user?: Partial<OwnerUser>) =>
-    setState((s) => {
-      const nextUser = { ...s.ownerUser, ...user };
-      return { ...s, isOwnerAuthenticated: true, ownerUser: nextUser };
+  useEffect(() => {
+    let active = true;
+
+    const applySession = async (session: { user: { id: string } } | null) => {
+      if (!session?.user) {
+        if (!active) return;
+        setAuthUserId(null);
+        setOwnerUser(emptyOwnerUser);
+        setIsOwnerAuthenticated(false);
+        setAuthLoading(false);
+        return;
+      }
+      const profile = await fetchProfile(session.user.id);
+      if (!active) return;
+      // A session can belong to a student account browsing while an owner
+      // portal tab is also open — only treat it as owner-authenticated when
+      // the profile was actually created as a "proprietaire" account.
+      if (!profile || profile.role !== "proprietaire") {
+        setAuthUserId(null);
+        setOwnerUser(emptyOwnerUser);
+        setIsOwnerAuthenticated(false);
+        setAuthLoading(false);
+        return;
+      }
+      setAuthUserId(session.user.id);
+      setOwnerUser(profileToOwnerUser(profile));
+      setIsOwnerAuthenticated(true);
+      setAuthLoading(false);
+    };
+
+    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session);
     });
 
-  const logout = () => setState((s) => ({ ...s, isOwnerAuthenticated: false }));
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
-  const updateOwnerUser = (patch: Partial<OwnerUser>) =>
-    setState((s) => ({ ...s, ownerUser: { ...s.ownerUser, ...patch } }));
+  const sendOtp = async (email: string, meta?: { fullName?: string; phone?: string }) => {
+    const [firstName, ...rest] = (meta?.fullName ?? "").trim().split(/\s+/).filter(Boolean);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        data: { first_name: firstName ?? "", last_name: rest.join(" "), phone: meta?.phone ?? "", role: "proprietaire" },
+      },
+    });
+    if (error) throw error;
+  };
 
-  const updateDraft = (patch: Partial<ListingDraft>) =>
-    setState((s) => ({ ...s, draft: { ...s.draft, ...patch } }));
+  const verifyOtp = async (email: string, token: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+    if (error) throw error;
+    const authUser = data.user;
+    if (!authUser) throw new Error("Vérification impossible, réessayez.");
+    const profile = await fetchProfile(authUser.id);
+    if (profile && profile.role !== "proprietaire") {
+      await supabase.auth.signOut();
+      throw new Error("Cette adresse email est déjà associée à un compte étudiant.");
+    }
+    setAuthUserId(authUser.id);
+    setOwnerUser(profile ? profileToOwnerUser(profile) : emptyOwnerUser);
+    setIsOwnerAuthenticated(true);
+  };
 
-  const resetDraft = () => setState((s) => ({ ...s, draft: emptyDraft }));
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const updateOwnerUser = (patch: Partial<OwnerUser>) => {
+    setOwnerUser((u) => ({ ...u, ...patch }));
+    if (!authUserId) return;
+    const dbPatch: Record<string, string> = {};
+    if (patch.fullName !== undefined) {
+      const [firstName, ...rest] = patch.fullName.trim().split(/\s+/).filter(Boolean);
+      dbPatch.first_name = firstName ?? "";
+      dbPatch.last_name = rest.join(" ");
+    }
+    if (patch.phone !== undefined) dbPatch.phone = patch.phone;
+    if (patch.avatar !== undefined) dbPatch.avatar = patch.avatar;
+    if (Object.keys(dbPatch).length > 0) {
+      supabase.from("profiles").update(dbPatch).eq("id", authUserId).then();
+    }
+  };
+
+  const updateDraft = (patch: Partial<ListingDraft>) => setLocal((s) => ({ ...s, draft: { ...s.draft, ...patch } }));
+  const resetDraft = () => setLocal((s) => ({ ...s, draft: emptyDraft }));
 
   const submitDraft = async () => {
-    const owner = state.ownerUser;
-    const id = await submitListing(state.draft, {
-      id: owner.phone,
-      name: owner.fullName,
-      phone: owner.phone,
-      avatarImg: owner.avatar,
-      memberSince: owner.memberSince ?? new Date().toISOString(),
+    if (!authUserId) throw new Error("Vous devez être connecté pour publier une annonce.");
+    const id = await submitListing(local.draft, {
+      id: authUserId,
+      name: ownerUser.fullName,
+      phone: ownerUser.phone,
+      avatarImg: ownerUser.avatar,
+      memberSince: ownerUser.memberSince,
     });
-    setState((s) => ({ ...s, draft: emptyDraft }));
+    setLocal((s) => ({ ...s, draft: emptyDraft }));
     return id;
   };
 
   const value = useMemo<OwnerContextValue>(
     () => ({
-      isOwnerAuthenticated: state.isOwnerAuthenticated,
-      ownerUser: state.ownerUser,
-      draft: state.draft,
-      login,
+      isOwnerAuthenticated,
+      authLoading,
+      ownerId: authUserId,
+      ownerUser,
+      draft: local.draft,
+      sendOtp,
+      verifyOtp,
       logout,
       updateOwnerUser,
       updateDraft,
       resetDraft,
       submitDraft,
     }),
-    [state],
+    [isOwnerAuthenticated, authLoading, ownerUser, local, authUserId],
   );
 
   return <OwnerContext.Provider value={value}>{children}</OwnerContext.Provider>;

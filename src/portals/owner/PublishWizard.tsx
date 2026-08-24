@@ -39,7 +39,7 @@ const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Park
 
 export function PublishWizard() {
   const { id: editId } = useParams();
-  const { ownerUser, draft, updateDraft, submitDraft, resetDraft } = useOwner();
+  const { ownerId, draft, updateDraft, submitDraft, resetDraft } = useOwner();
   const { getListing, updateListing } = useListings();
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
@@ -105,7 +105,7 @@ export function PublishWizard() {
     setSubmitError("");
     try {
       if (editId) {
-        await updateListing(editId, draft, ownerUser.phone);
+        await updateListing(editId, draft, ownerId ?? "");
         navigate(`/proprietaire/annonces/${editId}`);
       } else {
         await submitDraft();

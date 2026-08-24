@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { User as UserIcon, Camera } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -8,11 +8,17 @@ import { Avatar } from "../components/Avatar";
 import { resizeImageFile } from "../lib/resizeImage";
 
 export function Profile() {
-  const { isAuthenticated, user, credits, updateUser } = useApp();
+  const { isAuthenticated, authLoading, user, credits, updateUser } = useApp();
   const [form, setForm] = useState(user);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!authLoading) setForm(user);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  if (authLoading) return null;
   if (!isAuthenticated) return <Navigate to="/connexion" replace />;
 
   const handleChange = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

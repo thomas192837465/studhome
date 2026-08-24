@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Lock, MessageSquare, PartyPopper, Check } from "lucide-react";
+import { Lock, MessageSquare, PartyPopper } from "lucide-react";
 import { OwnerPublicHeader } from "./OwnerPublicHeader";
 import { Footer } from "../../components/Footer";
 import { CameroonFlag } from "../../components/CameroonFlag";
@@ -10,14 +10,16 @@ type Step = 1 | 2 | 3;
 
 export function OwnerSignup() {
   const navigate = useNavigate();
-  const { login } = useOwner();
+  const { sendOtp, verifyOtp } = useOwner();
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+237 699 999 999");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(28);
-  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     if (step !== 2) return;
@@ -26,32 +28,46 @@ export function OwnerSignup() {
     return () => clearTimeout(t);
   }, [step, seconds]);
 
-  const rules = [
-    { label: "8 caractères minimum", ok: password.length >= 8 },
-    { label: "Au moins une lettre", ok: /[a-zA-Z]/.test(password) },
-    { label: "Au moins un chiffre", ok: /[0-9]/.test(password) },
-  ];
-
-  const handleStep1 = (e: React.FormEvent) => {
+  const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(2);
+    setError("");
+    setSending(true);
+    try {
+      await sendOtp(email, { fullName, phone });
+      setStep(2);
+      setSeconds(28);
+    } catch {
+      setError("Impossible d'envoyer le code. Vérifiez votre adresse email.");
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleCodeChange = (i: number, value: string) => {
-    if (!/^[0-9]?$/.test(value)) return;
-    const next = [...code];
-    next[i] = value;
-    setCode(next);
-    if (value && i < 5) inputsRef.current[i + 1]?.focus();
+  const handleStep2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      await verifyOtp(email, code.trim());
+      setStep(3);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Code incorrect ou expiré.");
+    } finally {
+      setVerifying(false);
+    }
   };
 
-  const handleStep2 = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStep(3);
+  const handleResend = async () => {
+    setError("");
+    try {
+      await sendOtp(email, { fullName, phone });
+      setSeconds(28);
+    } catch {
+      setError("Impossible de renvoyer le code pour le moment.");
+    }
   };
 
   const finish = () => {
-    login({ fullName: fullName || "Dalia Abena", phone });
     navigate("/proprietaire/publier");
   };
 
@@ -103,30 +119,25 @@ export function OwnerSignup() {
                 </div>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Mot de passe</span>
+                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Email</span>
                 <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type="password"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
                   required
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
                 />
               </label>
-              <ul className="space-y-1">
-                {rules.map((r) => (
-                  <li
-                    key={r.label}
-                    className={`flex items-center gap-1.5 text-xs ${r.ok ? "text-brand-green" : "text-gray-400"}`}
-                  >
-                    <Check size={13} /> {r.label}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-xs text-gray-400">
+                Nous vous enverrons un code de vérification par email — aucun mot de passe requis.
+              </p>
+              {error && <p className="text-sm text-red-500">{error}</p>}
               <button
                 type="submit"
-                className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+                disabled={sending}
+                className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
               >
-                Continuer
+                {sending ? "Envoi en cours..." : "Continuer"}
               </button>
               <p className="text-center text-sm text-gray-500">
                 Déjà un compte ?{" "}
@@ -143,43 +154,41 @@ export function OwnerSignup() {
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-light text-brand-blue">
               <MessageSquare size={24} />
             </div>
-            <h2 className="font-display text-xl font-bold text-brand-navy">Vérification de votre numéro</h2>
+            <h2 className="font-display text-xl font-bold text-brand-navy">Vérification de votre email</h2>
             <p className="mt-2 text-sm text-gray-500">
-              Entrez le code à 6 chiffres envoyé sur votre WhatsApp ou par SMS au
+              Entrez le code envoyé à
               <br />
-              <span className="font-semibold text-brand-navy">{phone}</span>
+              <span className="font-semibold text-brand-navy">{email}</span>
             </p>
 
             <form onSubmit={handleStep2}>
-              <div className="mt-6 flex justify-center gap-2">
-                {code.map((c, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => {
-                      inputsRef.current[i] = el;
-                    }}
-                    value={c}
-                    onChange={(e) => handleCodeChange(i, e.target.value)}
-                    maxLength={1}
-                    inputMode="numeric"
-                    className="h-12 w-11 rounded-xl border border-gray-200 text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                  />
-                ))}
-              </div>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+                inputMode="numeric"
+                autoFocus
+                placeholder="Code de vérification"
+                className="mt-6 w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+              {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
               <p className="mt-4 text-xs text-gray-400">
                 {seconds > 0 ? (
                   `Renvoyer le code dans ${seconds}s`
                 ) : (
-                  <button type="button" onClick={() => setSeconds(28)} className="font-semibold text-brand-blue">
+                  <button type="button" onClick={handleResend} className="font-semibold text-brand-blue">
                     Renvoyer le code
                   </button>
                 )}
               </p>
               <button
                 type="submit"
-                className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+                disabled={verifying || !code}
+                className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
               >
-                Vérifier et continuer
+                {verifying ? "Vérification..." : "Vérifier et continuer"}
+              </button>
+              <button type="button" onClick={() => setStep(1)} className="mt-3 w-full text-center text-sm text-gray-400">
+                Changer d'adresse email
               </button>
             </form>
           </div>

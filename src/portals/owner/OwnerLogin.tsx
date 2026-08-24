@@ -1,19 +1,67 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { KeyRound, Users, BarChart3, ShieldCheck } from "lucide-react";
+import { KeyRound, MessageSquare, Users, BarChart3, ShieldCheck } from "lucide-react";
 import { OwnerPublicHeader } from "./OwnerPublicHeader";
 import { Footer } from "../../components/Footer";
-import { CameroonFlag } from "../../components/CameroonFlag";
 import { useOwner } from "../../context/OwnerContext";
+
+type Step = "email" | "code";
 
 export function OwnerLogin() {
   const navigate = useNavigate();
-  const { login } = useOwner();
+  const { sendOtp, verifyOtp } = useOwner();
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState("");
+  const [seconds, setSeconds] = useState(30);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (step !== "code" || seconds <= 0) return;
+    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [step, seconds]);
+
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    login();
-    navigate("/proprietaire/tableau-de-bord");
+    setError("");
+    setSending(true);
+    try {
+      await sendOtp(email);
+      setStep("code");
+      setSeconds(30);
+    } catch {
+      setError("Impossible d'envoyer le code. Vérifiez votre adresse email.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      await verifyOtp(email, code.trim());
+      navigate("/proprietaire/tableau-de-bord");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Code incorrect ou expiré.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError("");
+    try {
+      await sendOtp(email);
+      setSeconds(30);
+    } catch {
+      setError("Impossible de renvoyer le code pour le moment.");
+    }
   };
 
   return (
@@ -23,53 +71,79 @@ export function OwnerLogin() {
         <div className="grid sm:grid-cols-2 rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
           <div className="bg-brand-blue-light p-10 flex flex-col items-center justify-center text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-brand-blue shadow-sm mb-6">
-              <KeyRound size={32} />
+              {step === "email" ? <KeyRound size={32} /> : <MessageSquare size={32} />}
             </div>
             <h2 className="font-display text-xl font-bold text-brand-navy">Bon retour !</h2>
             <p className="mt-2 text-sm text-gray-500">Connectez-vous pour publier votre logement.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 sm:p-10 space-y-5">
-            <h3 className="font-display text-lg font-bold text-brand-navy">Connexion</h3>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Téléphone WhatsApp</span>
-              <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-3 focus-within:ring-2 focus-within:ring-brand-blue/30">
-                <CameroonFlag className="h-3.5 w-5 rounded-sm shrink-0" />
+          {step === "email" ? (
+            <form onSubmit={handleSendCode} className="p-8 sm:p-10 space-y-5">
+              <h3 className="font-display text-lg font-bold text-brand-navy">Connexion</h3>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Email</span>
                 <input
-                  type="tel"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  defaultValue="+237 699 999 999"
-                  className="w-full text-sm focus:outline-none"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
                 />
-              </div>
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Mot de passe</span>
-              <input
-                type="password"
-                required
-                defaultValue="password123"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-              />
-            </label>
-            <div className="text-right">
-              <button type="button" className="text-sm font-medium text-brand-blue">
-                Mot de passe oublié ?
+              </label>
+              <p className="text-xs text-gray-400">
+                Nous vous enverrons un code de vérification par email — aucun mot de passe requis.
+              </p>
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              <button
+                type="submit"
+                disabled={sending}
+                className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+              >
+                {sending ? "Envoi en cours..." : "Recevoir le code par email"}
               </button>
-            </div>
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
-            >
-              Se connecter
-            </button>
-            <p className="text-center text-sm text-gray-500">
-              Pas encore de compte ?{" "}
-              <Link to="/proprietaire/inscription" className="font-semibold text-brand-blue">
-                Créer un compte propriétaire
-              </Link>
-            </p>
-          </form>
+              <p className="text-center text-sm text-gray-500">
+                Pas encore de compte ?{" "}
+                <Link to="/proprietaire/inscription" className="font-semibold text-brand-blue">
+                  Créer un compte propriétaire
+                </Link>
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="p-8 sm:p-10 space-y-5">
+              <h3 className="font-display text-lg font-bold text-brand-navy">Vérification</h3>
+              <p className="text-sm text-gray-500">
+                Code envoyé à <span className="font-semibold text-brand-navy">{email}</span>
+              </p>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+                inputMode="numeric"
+                autoFocus
+                placeholder="Code de vérification"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+              {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+              <p className="text-center text-xs text-gray-400">
+                {seconds > 0 ? (
+                  `Renvoyer le code dans ${seconds}s`
+                ) : (
+                  <button type="button" onClick={handleResend} className="font-semibold text-brand-blue">
+                    Renvoyer le code
+                  </button>
+                )}
+              </p>
+              <button
+                type="submit"
+                disabled={verifying || !code}
+                className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+              >
+                {verifying ? "Vérification..." : "Vérifier et continuer"}
+              </button>
+              <button type="button" onClick={() => setStep("email")} className="w-full text-center text-sm text-gray-400">
+                Changer d'adresse email
+              </button>
+            </form>
+          )}
         </div>
 
         <div className="mt-10">

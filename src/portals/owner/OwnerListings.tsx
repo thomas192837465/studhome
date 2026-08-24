@@ -5,9 +5,9 @@ import { useListings } from "../../context/ListingsContext";
 import { listingStatusClass } from "../../data/listingStatus";
 
 export function OwnerListings() {
-  const { ownerUser } = useOwner();
+  const { ownerId } = useOwner();
   const { getListingsByOwner } = useListings();
-  const listings = getListingsByOwner(ownerUser.phone);
+  const listings = getListingsByOwner(ownerId ?? "");
 
   return (
     <div className="p-6 sm:p-10">

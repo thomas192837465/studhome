@@ -76,7 +76,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   const getPublicListings = () => listings.filter((l) => l.status === "Publiée");
 
   const submitListing = async (draft: ListingDraft, owner: OwnerIdentity, unlockCost = 10) => {
-    const folder = owner.id.replace(/\D/g, "") || "owner";
+    const folder = owner.id.replace(/[^a-zA-Z0-9]/g, "") || "owner";
     const galleryUrls = draft.photos.length > 0 ? await uploadListingPhotos(draft.photos, folder) : [];
 
     const { data, error } = await supabase
@@ -111,7 +111,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   };
 
   const updateListing = async (id: string, draft: ListingDraft, ownerId: string) => {
-    const folder = ownerId.replace(/\D/g, "") || "owner";
+    const folder = ownerId.replace(/[^a-zA-Z0-9]/g, "") || "owner";
     // photos already uploaded (http URLs) are kept as-is; only new base64 previews get uploaded
     const existingUrls = draft.photos.filter((p) => p.startsWith("http"));
     const newDataUrls = draft.photos.filter((p) => !p.startsWith("http"));

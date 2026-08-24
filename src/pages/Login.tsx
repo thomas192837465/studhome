@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -9,18 +9,74 @@ import { Logo } from "../components/Logo";
 import { useApp } from "../context/AppContext";
 
 type Tab = "connexion" | "inscription";
+type Step = "form" | "code";
 
 export function Login() {
   const [params] = useSearchParams();
   const initialTab: Tab = params.get("tab") === "inscription" ? "inscription" : "connexion";
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [step, setStep] = useState<Step>("form");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState("");
+  const [seconds, setSeconds] = useState(30);
   const navigate = useNavigate();
-  const { login } = useApp();
+  const { sendOtp, verifyOtp } = useApp();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (step !== "code" || seconds <= 0) return;
+    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [step, seconds]);
+
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setStep("form");
+    setError("");
+    setCode("");
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    login();
-    navigate("/home");
+    setError("");
+    setSending(true);
+    try {
+      await sendOtp(email, tab === "inscription" ? { firstName, lastName } : undefined);
+      setStep("code");
+      setSeconds(30);
+    } catch {
+      setError("Impossible d'envoyer le code. Vérifiez votre adresse email.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      await verifyOtp(email, code.trim());
+      navigate("/home");
+    } catch {
+      setError("Code incorrect ou expiré. Réessayez ou renvoyez un nouveau code.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError("");
+    try {
+      await sendOtp(email, tab === "inscription" ? { firstName, lastName } : undefined);
+      setSeconds(30);
+    } catch {
+      setError("Impossible de renvoyer le code pour le moment.");
+    }
   };
 
   return (
@@ -38,79 +94,110 @@ export function Login() {
           Connectez-vous ou créez un compte pour trouver votre logement en toute confiance.
         </p>
 
-        <div className="mt-8 grid grid-cols-2 rounded-xl bg-gray-100 p-1 max-w-sm">
-          <button
-            onClick={() => setTab("connexion")}
-            className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-              tab === "connexion" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Se connecter
-          </button>
-          <button
-            onClick={() => setTab("inscription")}
-            className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-              tab === "inscription" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
-            }`}
-          >
-            Créer un compte
-          </button>
-        </div>
+        {step === "form" && (
+          <div className="mt-8 grid grid-cols-2 rounded-xl bg-gray-100 p-1 max-w-sm">
+            <button
+              onClick={() => switchTab("connexion")}
+              className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                tab === "connexion" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
+              }`}
+            >
+              Se connecter
+            </button>
+            <button
+              onClick={() => switchTab("inscription")}
+              className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                tab === "inscription" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
+              }`}
+            >
+              Créer un compte
+            </button>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="mt-6 max-w-sm space-y-4">
-          {tab === "inscription" && (
-            <>
-              <Field label="Prénom" placeholder="" />
-              <Field label="Nom" placeholder="" />
-            </>
-          )}
-          <Field
-            label="Email"
-            type="email"
-            placeholder=""
-            defaultValue={tab === "connexion" ? "etudiant@studhome.cm" : undefined}
-          />
-          <Field
-            label="Mot de passe"
-            type="password"
-            placeholder=""
-            defaultValue={tab === "connexion" ? "test1234" : undefined}
-          />
-          {tab === "inscription" && <Field label="Ressaisir le mot de passe" type="password" placeholder="" />}
-
-          {tab === "connexion" && (
-            <div className="text-right">
-              <button type="button" className="text-sm font-medium text-brand-blue">
-                Mot de passe oublié ?
-              </button>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
-          >
-            {tab === "connexion" ? "Se connecter" : "Créer un compte"}
-          </button>
-
-          <p className="text-center text-sm text-gray-500">
-            {tab === "connexion" ? (
+        {step === "form" ? (
+          <form onSubmit={handleSendCode} className="mt-6 max-w-sm space-y-4">
+            {tab === "inscription" && (
               <>
-                Pas encore de compte ?{" "}
-                <button type="button" onClick={() => setTab("inscription")} className="font-semibold text-brand-blue">
-                  Créer un compte
-                </button>
-              </>
-            ) : (
-              <>
-                Déjà un compte ?{" "}
-                <button type="button" onClick={() => setTab("connexion")} className="font-semibold text-brand-blue">
-                  Se connecter
-                </button>
+                <Field label="Prénom" value={firstName} onChange={setFirstName} />
+                <Field label="Nom" value={lastName} onChange={setLastName} />
               </>
             )}
-          </p>
-        </form>
+            <Field label="Email" type="email" value={email} onChange={setEmail} />
+            <p className="text-xs text-gray-400">
+              Nous vous enverrons un code de vérification par email — aucun mot de passe requis.
+            </p>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={sending}
+              className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+            >
+              {sending ? "Envoi en cours..." : "Recevoir le code par email"}
+            </button>
+
+            <p className="text-center text-sm text-gray-500">
+              {tab === "connexion" ? (
+                <>
+                  Pas encore de compte ?{" "}
+                  <button type="button" onClick={() => switchTab("inscription")} className="font-semibold text-brand-blue">
+                    Créer un compte
+                  </button>
+                </>
+              ) : (
+                <>
+                  Déjà un compte ?{" "}
+                  <button type="button" onClick={() => switchTab("connexion")} className="font-semibold text-brand-blue">
+                    Se connecter
+                  </button>
+                </>
+              )}
+            </p>
+          </form>
+        ) : (
+          <form onSubmit={handleVerify} className="mt-6 max-w-sm">
+            <p className="text-sm text-gray-500">
+              Entrez le code envoyé à <span className="font-semibold text-brand-navy">{email}</span>
+            </p>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+              inputMode="numeric"
+              autoFocus
+              placeholder="Code de vérification"
+              className="mt-5 w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+            />
+
+            {error && <p className="mt-3 text-sm text-red-500 text-center">{error}</p>}
+
+            <p className="mt-4 text-center text-xs text-gray-400">
+              {seconds > 0 ? (
+                `Renvoyer le code dans ${seconds}s`
+              ) : (
+                <button type="button" onClick={handleResend} className="font-semibold text-brand-blue">
+                  Renvoyer le code
+                </button>
+              )}
+            </p>
+
+            <button
+              type="submit"
+              disabled={verifying || !code}
+              className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+            >
+              {verifying ? "Vérification..." : "Vérifier et continuer"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep("form")}
+              className="mt-3 w-full text-center text-sm text-gray-400"
+            >
+              Changer d'adresse email
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="relative hidden lg:block overflow-hidden">
@@ -154,21 +241,21 @@ export function Login() {
 function Field({
   label,
   type = "text",
-  placeholder,
-  defaultValue,
+  value,
+  onChange,
 }: {
   label: string;
   type?: string;
-  placeholder?: string;
-  defaultValue?: string;
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-semibold text-brand-navy">{label}</span>
       <input
         type={type}
-        placeholder={placeholder}
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         required
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
       />

@@ -188,3 +188,69 @@ create policy "signalements_delete_all_temp" on public.signalements
   for delete using (true);
 
 alter publication supabase_realtime add table public.signalements;
+
+-- ============================================================================
+-- Migration 4: real accounts (Supabase Auth + email OTP) — student & owner
+-- profiles. Unlike the other tables in this file, RLS here is intentionally
+-- STRICT (not "_temp" permissive): profiles hold real emails/phone numbers
+-- behind real auth accounts, so each user may only read/edit their own row.
+-- ============================================================================
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  role text not null default 'etudiant' check (role in ('etudiant', 'proprietaire')),
+  first_name text not null default '',
+  last_name text not null default '',
+  email text,
+  phone text not null default '',
+  city text not null default '',
+  university text not null default '',
+  bio text not null default '',
+  avatar text not null default '',
+  referral_code text,
+  created_at timestamptz not null default now()
+);
+
+-- Auto-create a profile row the moment a new auth user is created (right
+-- after their first OTP verification), seeded from the metadata passed to
+-- signInWithOtp's options.data — avoids a separate client-side insert call
+-- that could be skipped or fail independently of the auth signup itself.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, role, first_name, last_name, email, phone)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'role', 'etudiant'),
+    coalesce(new.raw_user_meta_data->>'first_name', ''),
+    coalesce(new.raw_user_meta_data->>'last_name', ''),
+    new.email,
+    coalesce(new.raw_user_meta_data->>'phone', '')
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+
+create policy "profiles_select_own" on public.profiles
+  for select using (auth.uid() = id);
+
+create policy "profiles_insert_own" on public.profiles
+  for insert with check (auth.uid() = id);
+
+create policy "profiles_update_own" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);

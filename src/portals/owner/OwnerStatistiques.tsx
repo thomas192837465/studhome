@@ -4,9 +4,9 @@ import { Sparkline } from "../../components/Sparkline";
 import { listingStatusClass } from "../../data/listingStatus";
 
 export function OwnerStatistiques() {
-  const { ownerUser } = useOwner();
+  const { ownerId } = useOwner();
   const { getListingsByOwner } = useListings();
-  const listings = getListingsByOwner(ownerUser.phone);
+  const listings = getListingsByOwner(ownerId ?? "");
 
   const totalViews = listings.reduce((s, l) => s + l.views, 0);
   const totalFavs = listings.reduce((s, l) => s + l.favoritesCount, 0);
