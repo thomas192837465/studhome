@@ -53,6 +53,14 @@ export function OwnerProfile() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-brand-navy">Email</span>
+          <input
+            value={form.email}
+            disabled
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500"
+          />
+        </label>
+        <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-brand-navy">Nom complet</span>
           <input
             value={form.fullName}

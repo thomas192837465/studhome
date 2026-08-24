@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, GraduationCap, Building2 } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHouse } from "@fortawesome/free-solid-svg-icons";
 import loginBedroom from "../assets/images/login-bedroom.jpg";
@@ -15,6 +15,7 @@ export function Login() {
   const [params] = useSearchParams();
   const initialTab: Tab = params.get("tab") === "inscription" ? "inscription" : "connexion";
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [accountType, setAccountType] = useState<"etudiant" | null>(null);
   const [step, setStep] = useState<Step>("form");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,6 +36,7 @@ export function Login() {
 
   const switchTab = (t: Tab) => {
     setTab(t);
+    setAccountType(null);
     setStep("form");
     setError("");
     setCode("");
@@ -61,7 +63,7 @@ export function Login() {
     setVerifying(true);
     try {
       await verifyOtp(email, code.trim());
-      navigate("/home");
+      navigate(tab === "inscription" ? "/profil" : "/home");
     } catch {
       setError("Code incorrect ou expiré. Réessayez ou renvoyez un nouveau code.");
     } finally {
@@ -115,10 +117,52 @@ export function Login() {
           </div>
         )}
 
-        {step === "form" ? (
+        {step === "form" && tab === "inscription" && accountType === null ? (
+          <div className="mt-6 max-w-sm space-y-3">
+            <button
+              type="button"
+              onClick={() => setAccountType("etudiant")}
+              className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-blue hover:bg-brand-blue-light transition-colors"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue-light text-brand-blue">
+                <GraduationCap size={22} />
+              </span>
+              <span>
+                <span className="block font-semibold text-brand-navy">Créer un compte étudiant</span>
+                <span className="block text-sm text-gray-500">Recherchez et contactez des propriétaires.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/proprietaire/inscription")}
+              className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-orange hover:bg-brand-orange-light transition-colors"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange-light text-brand-orange">
+                <Building2 size={22} />
+              </span>
+              <span>
+                <span className="block font-semibold text-brand-navy">Créer un compte propriétaire</span>
+                <span className="block text-sm text-gray-500">Publiez vos logements gratuitement.</span>
+              </span>
+            </button>
+            <p className="text-center text-sm text-gray-500 pt-2">
+              Déjà un compte ?{" "}
+              <button type="button" onClick={() => switchTab("connexion")} className="font-semibold text-brand-blue">
+                Se connecter
+              </button>
+            </p>
+          </div>
+        ) : step === "form" ? (
           <form onSubmit={handleSendCode} className="mt-6 max-w-sm space-y-4">
             {tab === "inscription" && (
               <>
+                <button
+                  type="button"
+                  onClick={() => setAccountType(null)}
+                  className="text-sm font-medium text-gray-400"
+                >
+                  ← Retour
+                </button>
                 <Field label="Prénom" value={firstName} onChange={setFirstName} />
                 <Field label="Nom" value={lastName} onChange={setLastName} />
               </>

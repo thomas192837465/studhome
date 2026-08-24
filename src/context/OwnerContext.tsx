@@ -6,11 +6,18 @@ import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
 import { useListings } from "./ListingsContext";
 
-const emptyOwnerUser: OwnerUser = { fullName: "", phone: "", memberSince: new Date().toISOString(), avatar: "" };
+const emptyOwnerUser: OwnerUser = {
+  fullName: "",
+  email: "",
+  phone: "",
+  memberSince: new Date().toISOString(),
+  avatar: "",
+};
 
 function profileToOwnerUser(row: ProfileRow): OwnerUser {
   return {
     fullName: `${row.first_name} ${row.last_name}`.trim() || "Propriétaire",
+    email: row.email ?? "",
     phone: row.phone,
     memberSince: row.created_at,
     avatar: row.avatar,

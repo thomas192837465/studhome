@@ -68,7 +68,7 @@ export function OwnerSignup() {
   };
 
   const finish = () => {
-    navigate("/proprietaire/publier");
+    navigate("/proprietaire/profil");
   };
 
   return (
@@ -201,13 +201,13 @@ export function OwnerSignup() {
             </div>
             <h2 className="font-display text-xl font-bold text-brand-navy">Compte créé avec succès !</h2>
             <p className="mt-2 text-sm text-gray-500">
-              Vous pouvez maintenant publier votre premier logement et recevoir des demandes d'étudiants.
+              Complétez votre profil pour pouvoir publier votre premier logement.
             </p>
             <button
               onClick={finish}
               className="mt-7 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors"
             >
-              Publier mon logement
+              Compléter mon profil
             </button>
           </div>
         )}

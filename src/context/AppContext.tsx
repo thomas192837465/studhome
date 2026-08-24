@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Transaction, User } from "../data/types";
-import { seedTransactions } from "../data/seed";
 import { supabase } from "../lib/supabase";
 import { makeReferralCode, type ProfileRow } from "../lib/profileMapper";
 
@@ -65,14 +64,14 @@ function loadLocalState(): LocalState {
       return {
         favorites: parsed.favorites ?? [],
         unlockedListings: parsed.unlockedListings ?? [],
-        transactions: parsed.transactions ?? seedTransactions,
-        credits: parsed.credits ?? 250,
+        transactions: parsed.transactions ?? [],
+        credits: parsed.credits ?? 0,
       };
     }
   } catch {
     // ignore corrupted storage
   }
-  return { favorites: [], unlockedListings: [], transactions: seedTransactions, credits: 250 };
+  return { favorites: [], unlockedListings: [], transactions: [], credits: 0 };
 }
 
 interface AppContextValue {
