@@ -254,3 +254,120 @@ create policy "profiles_insert_own" on public.profiles
 
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- ============================================================================
+-- Migration 5: real per-account credits, favorites, unlocks & transaction
+-- history — replaces the browser-localStorage version of this state, which
+-- followed the browser rather than the logged-in account. Strict per-user
+-- RLS throughout, same rationale as the profiles table above.
+-- ============================================================================
+
+alter table public.profiles add column if not exists credits integer not null default 0;
+
+create table if not exists public.favorites (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, listing_id)
+);
+
+create table if not exists public.unlocked_listings (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  unlocked_at timestamptz not null default now(),
+  primary key (user_id, listing_id)
+);
+
+create table if not exists public.credit_transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  type text not null check (type in ('Achat', 'Utilisation', 'Remboursement')),
+  description text not null,
+  credits integer not null,
+  amount numeric not null default 0,
+  status text not null default 'Terminé' check (status in ('Terminé', 'En cours', 'Échoué')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists favorites_user_id_idx on public.favorites (user_id);
+create index if not exists unlocked_listings_user_id_idx on public.unlocked_listings (user_id);
+create index if not exists credit_transactions_user_id_idx on public.credit_transactions (user_id);
+
+alter table public.favorites enable row level security;
+alter table public.unlocked_listings enable row level security;
+alter table public.credit_transactions enable row level security;
+
+drop policy if exists "favorites_select_own" on public.favorites;
+drop policy if exists "favorites_insert_own" on public.favorites;
+drop policy if exists "favorites_delete_own" on public.favorites;
+
+create policy "favorites_select_own" on public.favorites
+  for select using (auth.uid() = user_id);
+create policy "favorites_insert_own" on public.favorites
+  for insert with check (auth.uid() = user_id);
+create policy "favorites_delete_own" on public.favorites
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "unlocked_listings_select_own" on public.unlocked_listings;
+drop policy if exists "unlocked_listings_insert_own" on public.unlocked_listings;
+
+create policy "unlocked_listings_select_own" on public.unlocked_listings
+  for select using (auth.uid() = user_id);
+create policy "unlocked_listings_insert_own" on public.unlocked_listings
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "credit_transactions_select_own" on public.credit_transactions;
+drop policy if exists "credit_transactions_insert_own" on public.credit_transactions;
+
+create policy "credit_transactions_select_own" on public.credit_transactions
+  for select using (auth.uid() = user_id);
+create policy "credit_transactions_insert_own" on public.credit_transactions
+  for insert with check (auth.uid() = user_id);
+
+-- Atomic unlock: checks balance, deducts credits, records the unlock and the
+-- transaction all in one statement — avoids a race where two quick clicks
+-- (or two tabs) both read a stale balance and both succeed.
+create or replace function public.unlock_listing(p_listing_id uuid, p_cost integer, p_label text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  current_credits integer;
+  already_unlocked boolean;
+begin
+  select exists(
+    select 1 from public.unlocked_listings where user_id = auth.uid() and listing_id = p_listing_id
+  ) into already_unlocked;
+  if already_unlocked then
+    return true;
+  end if;
+
+  select credits into current_credits from public.profiles where id = auth.uid() for update;
+  if current_credits is null or current_credits < p_cost then
+    return false;
+  end if;
+
+  update public.profiles set credits = credits - p_cost where id = auth.uid();
+  insert into public.unlocked_listings (user_id, listing_id) values (auth.uid(), p_listing_id);
+  insert into public.credit_transactions (user_id, type, description, credits, amount, status)
+  values (auth.uid(), 'Utilisation', 'Contact propriétaire - ' || p_label, -p_cost, 0, 'Terminé');
+
+  return true;
+end;
+$$;
+
+create or replace function public.buy_credits(p_credits integer, p_amount numeric, p_pack_name text)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.profiles set credits = credits + p_credits where id = auth.uid();
+  insert into public.credit_transactions (user_id, type, description, credits, amount, status)
+  values (auth.uid(), 'Achat', p_pack_name || ' - ' || p_credits || ' crédits', p_credits, p_amount, 'Terminé');
+end;
+$$;
+
+grant execute on function public.unlock_listing(uuid, integer, text) to authenticated;
+grant execute on function public.buy_credits(integer, numeric, text) to authenticated;

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { Transaction, User } from "../data/types";
 import { supabase } from "../lib/supabase";
 import { makeReferralCode, type ProfileRow } from "../lib/profileMapper";
+import { rowToTransaction, type TransactionRow } from "../lib/transactionMapper";
 
 const emptyUser: User = {
   firstName: "",
@@ -44,36 +45,6 @@ async function fetchProfile(id: string): Promise<ProfileRow | null> {
   return null;
 }
 
-// Not tied to the real account — kept local per browser for now, same as
-// before real auth existed. Migrating these to per-account Supabase data is
-// a separate piece of work.
-interface LocalState {
-  favorites: string[];
-  unlockedListings: string[];
-  transactions: Transaction[];
-  credits: number;
-}
-
-const STORAGE_KEY = "studhome-state";
-
-function loadLocalState(): LocalState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        favorites: parsed.favorites ?? [],
-        unlockedListings: parsed.unlockedListings ?? [],
-        transactions: parsed.transactions ?? [],
-        credits: parsed.credits ?? 0,
-      };
-    }
-  } catch {
-    // ignore corrupted storage
-  }
-  return { favorites: [], unlockedListings: [], transactions: [], credits: 0 };
-}
-
 interface AppContextValue {
   isAuthenticated: boolean;
   authLoading: boolean;
@@ -89,22 +60,32 @@ interface AppContextValue {
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
   isUnlocked: (id: string) => boolean;
-  unlockListing: (id: string, cost: number, label: string) => boolean;
-  buyPack: (credits: number, price: number, packName: string) => void;
+  unlockListing: (id: string, cost: number, label: string) => Promise<boolean>;
+  buyPack: (credits: number, price: number, packName: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [local, setLocal] = useState<LocalState>(loadLocalState);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [user, setUser] = useState<User>(emptyUser);
+  const [credits, setCredits] = useState(0);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [unlockedListings, setUnlockedListings] = useState<string[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
-  }, [local]);
+  const fetchAccountData = async (userId: string) => {
+    const [favRes, unlockRes, txRes] = await Promise.all([
+      supabase.from("favorites").select("listing_id").eq("user_id", userId),
+      supabase.from("unlocked_listings").select("listing_id").eq("user_id", userId),
+      supabase.from("credit_transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    ]);
+    setFavorites((favRes.data ?? []).map((r) => r.listing_id as string));
+    setUnlockedListings((unlockRes.data ?? []).map((r) => r.listing_id as string));
+    setTransactions(((txRes.data ?? []) as TransactionRow[]).map(rowToTransaction));
+  };
 
   useEffect(() => {
     let active = true;
@@ -114,6 +95,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         setAuthUserId(null);
         setUser(emptyUser);
+        setCredits(0);
+        setFavorites([]);
+        setUnlockedListings([]);
+        setTransactions([]);
         setIsAuthenticated(false);
         setAuthLoading(false);
         return;
@@ -122,8 +107,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       setAuthUserId(session.user.id);
       setUser(profile ? profileToUser(profile) : emptyUser);
+      setCredits(profile?.credits ?? 0);
       setIsAuthenticated(true);
       setAuthLoading(false);
+      await fetchAccountData(session.user.id);
     };
 
     supabase.auth.getSession().then(({ data }) => applySession(data.session));
@@ -156,7 +143,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const profile = await fetchProfile(authUser.id);
     setAuthUserId(authUser.id);
     setUser(profile ? profileToUser(profile) : emptyUser);
+    setCredits(profile?.credits ?? 0);
     setIsAuthenticated(true);
+    await fetchAccountData(authUser.id);
   };
 
   const logout = async () => {
@@ -180,59 +169,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleFavorite = (id: string) =>
-    setLocal((s) => ({
-      ...s,
-      favorites: s.favorites.includes(id) ? s.favorites.filter((f) => f !== id) : [...s.favorites, id],
-    }));
+  const toggleFavorite = (id: string) => {
+    if (!authUserId) return;
+    const isFav = favorites.includes(id);
+    if (isFav) {
+      setFavorites((f) => f.filter((x) => x !== id));
+      supabase.from("favorites").delete().eq("user_id", authUserId).eq("listing_id", id).then();
+    } else {
+      setFavorites((f) => [...f, id]);
+      supabase.from("favorites").insert({ user_id: authUserId, listing_id: id }).then();
+    }
+  };
 
-  const isFavorite = (id: string) => local.favorites.includes(id);
-  const isUnlocked = (id: string) => local.unlockedListings.includes(id);
+  const isFavorite = (id: string) => favorites.includes(id);
+  const isUnlocked = (id: string) => unlockedListings.includes(id);
 
-  const unlockListing = (id: string, cost: number, label: string) => {
-    if (local.unlockedListings.includes(id)) return true;
-    if (local.credits < cost) return false;
-    const tx: Transaction = {
-      id: `tx-${Date.now()}`,
-      date: new Date().toLocaleString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "Utilisation",
-      description: `Contact propriétaire - ${label}`,
-      credits: -cost,
-      amount: 0,
-      status: "Terminé",
-    };
-    setLocal((s) => ({
-      ...s,
-      credits: s.credits - cost,
-      unlockedListings: [...s.unlockedListings, id],
-      transactions: [tx, ...s.transactions],
-    }));
+  const unlockListing = async (id: string, cost: number, label: string): Promise<boolean> => {
+    if (unlockedListings.includes(id)) return true;
+    if (!authUserId) return false;
+    const { data, error } = await supabase.rpc("unlock_listing", {
+      p_listing_id: id,
+      p_cost: cost,
+      p_label: label,
+    });
+    if (error || !data) return false;
+    setUnlockedListings((u) => [...u, id]);
+    setCredits((c) => c - cost);
+    await fetchAccountData(authUserId);
     return true;
   };
 
-  const buyPack = (credits: number, price: number, packName: string) => {
-    const tx: Transaction = {
-      id: `tx-${Date.now()}`,
-      date: new Date().toLocaleString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "Achat",
-      description: `${packName} - ${credits} crédits`,
-      credits,
-      amount: price,
-      status: "Terminé",
-    };
-    setLocal((s) => ({ ...s, credits: s.credits + credits, transactions: [tx, ...s.transactions] }));
+  const buyPack = async (creditsAmount: number, price: number, packName: string) => {
+    if (!authUserId) return;
+    const { error } = await supabase.rpc("buy_credits", {
+      p_credits: creditsAmount,
+      p_amount: price,
+      p_pack_name: packName,
+    });
+    if (error) throw error;
+    setCredits((c) => c + creditsAmount);
+    await fetchAccountData(authUserId);
   };
 
   const value = useMemo<AppContextValue>(
@@ -240,10 +216,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       authLoading,
       user,
-      credits: local.credits,
-      favorites: local.favorites,
-      unlockedListings: local.unlockedListings,
-      transactions: local.transactions,
+      credits,
+      favorites,
+      unlockedListings,
+      transactions,
       sendOtp,
       verifyOtp,
       logout,
@@ -254,7 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unlockListing,
       buyPack,
     }),
-    [isAuthenticated, authLoading, user, local, authUserId],
+    [isAuthenticated, authLoading, user, credits, favorites, unlockedListings, transactions, authUserId],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

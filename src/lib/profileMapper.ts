@@ -10,6 +10,7 @@ export interface ProfileRow {
   bio: string;
   avatar: string;
   referral_code: string | null;
+  credits: number;
   created_at: string;
 }
 

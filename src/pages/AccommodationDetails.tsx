@@ -126,13 +126,13 @@ export function AccommodationDetails() {
     adjustFavorite(listing.id, fav ? -1 : 1);
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     if (!isAuthenticated) {
       navigate("/connexion");
       return;
     }
     if (unlocked) return;
-    const ok = unlockListing(listing.id, listing.unlockCost, listing.city);
+    const ok = await unlockListing(listing.id, listing.unlockCost, listing.city);
     if (ok) {
       recordUnlock(listing.id);
       setShowToast(true);

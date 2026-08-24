@@ -30,7 +30,7 @@ export function PaymentCallback() {
         const res = await fetch(`/api/notchpay/verify?reference=${encodeURIComponent(notchpayId)}`);
         const data = await res.json();
         if (data.success) {
-          buyPack(data.credits, data.price, data.packName);
+          await buyPack(data.credits, data.price, data.packName);
           navigate(`/credits/succes?pack=${data.packId}`, { replace: true });
         } else {
           setFailed(true);
