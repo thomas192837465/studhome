@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Heart, ChevronDown, ChevronUp, User, CreditCard, Clock, Shield, LogOut, Building2 } from "lucide-react";
+import { Heart, ChevronDown, ChevronUp, User, CreditCard, Clock, Shield, LogOut, Building2, Menu, X } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCoins } from "@fortawesome/free-solid-svg-icons";
 import { Logo } from "./Logo";
@@ -13,9 +13,15 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? "text-brand-blue" : "text-gray-700"
   }`;
 
+const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+    isActive ? "bg-brand-blue-light text-brand-blue" : "text-gray-700 hover:bg-gray-50"
+  }`;
+
 export function Header() {
   const { isAuthenticated, user, credits, favorites, logout } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -32,8 +38,11 @@ export function Header() {
   const handleLogout = () => {
     logout();
     setMenuOpen(false);
+    setMobileMenuOpen(false);
     navigate("/");
   };
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
@@ -88,7 +97,7 @@ export function Header() {
                 {credits} crédits
               </Link>
 
-              <div className="relative" ref={menuRef}>
+              <div className="hidden md:block relative" ref={menuRef}>
                 <button
                   onClick={() => setMenuOpen((o) => !o)}
                   className="flex items-center gap-1.5 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-gray-50"
@@ -152,13 +161,13 @@ export function Header() {
             <>
               <Link
                 to="/connexion"
-                className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-brand-navy hover:border-gray-400 transition-colors"
+                className="hidden md:inline-block rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-brand-navy hover:border-gray-400 transition-colors"
               >
                 Se connecter
               </Link>
               <Link
                 to="/connexion?tab=inscription"
-                className="rounded-full bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-dark transition-colors"
+                className="hidden md:inline-block rounded-full bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange-dark transition-colors"
               >
                 S'inscrire
               </Link>
@@ -168,8 +177,100 @@ export function Header() {
             <CameroonFlag className="h-3.5 w-5 rounded-sm overflow-hidden" />
             <ChevronDown size={14} />
           </button>
+          {isAuthenticated && <Avatar src={user.avatar} name={user.firstName} className="h-9 w-9 md:hidden" />}
+          <button
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-50 md:hidden"
+            aria-label="Menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 max-h-[calc(100vh-70px)] overflow-y-auto">
+          <nav className="space-y-1">
+            <NavLink to="/home" end className={mobileNavLinkClass} onClick={closeMobileMenu}>
+              Accueil
+            </NavLink>
+            <NavLink to="/logements" className={mobileNavLinkClass} onClick={closeMobileMenu}>
+              Logements
+            </NavLink>
+            <NavLink to="/favoris" className={mobileNavLinkClass} onClick={closeMobileMenu}>
+              Favoris
+            </NavLink>
+            <NavLink to="/a-propos" className={mobileNavLinkClass} onClick={closeMobileMenu}>
+              A propos
+            </NavLink>
+            <NavLink to="/contact" className={mobileNavLinkClass} onClick={closeMobileMenu}>
+              Contact
+            </NavLink>
+          </nav>
+
+          {isAuthenticated ? (
+            <>
+              {user.role === "Propriétaire" && (
+                <Link
+                  to="/proprietaire/tableau-de-bord"
+                  onClick={closeMobileMenu}
+                  className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white"
+                >
+                  <Building2 size={15} /> Passer en mode propriétaire
+                </Link>
+              )}
+              <div className="mt-3 flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                <Avatar src={user.avatar} name={user.firstName} className="h-10 w-10" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-brand-navy leading-tight truncate">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500">{user.role}</p>
+                </div>
+              </div>
+              <nav className="mt-1 space-y-1">
+                <MenuItem icon={<User size={18} />} label="Mon compte" to="/profil" active onClick={closeMobileMenu} />
+                <MenuItem
+                  icon={<FontAwesomeIcon icon={faCoins} className="h-4 w-4" />}
+                  label={`${credits} crédits`}
+                  to="/credits/achat"
+                  onClick={closeMobileMenu}
+                />
+                <MenuItem
+                  icon={<Clock size={18} />}
+                  label="Historique de crédits"
+                  to="/credits/historique"
+                  onClick={closeMobileMenu}
+                />
+              </nav>
+              <button
+                onClick={handleLogout}
+                className="mt-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50"
+              >
+                <LogOut size={18} />
+                Déconnexion
+              </button>
+            </>
+          ) : (
+            <div className="mt-3 flex flex-col gap-2">
+              <Link
+                to="/connexion"
+                onClick={closeMobileMenu}
+                className="rounded-xl border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-brand-navy"
+              >
+                Se connecter
+              </Link>
+              <Link
+                to="/connexion?tab=inscription"
+                onClick={closeMobileMenu}
+                className="rounded-xl bg-brand-orange px-4 py-3 text-center text-sm font-semibold text-white"
+              >
+                S'inscrire
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
@@ -191,7 +292,7 @@ function MenuItem({
     <Link
       to={to}
       onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 ${
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 rounded-xl ${
         active ? "text-brand-blue font-medium" : "text-gray-700"
       }`}
     >

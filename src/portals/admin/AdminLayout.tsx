@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -14,6 +15,8 @@ import {
   Settings,
   ChevronDown,
   Star,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useListings } from "../../context/ListingsContext";
@@ -27,6 +30,7 @@ export function AdminLayout() {
   const { reviews } = useReviews();
   const { signalements } = useSignalements();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const isSuper = session?.role === "Super Admin";
   const base = isSuper ? "/superadmin" : "/admin";
 
@@ -54,71 +58,92 @@ export function AdminLayout() {
     { to: `${base}/parametres`, label: "Paramètres", icon: Settings },
   ];
 
+  const sidebarContent = (
+    <>
+      {session && (
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-white">
+            {session.name.charAt(0)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{session.name}</p>
+            <p className="text-xs text-gray-400">{session.role}</p>
+          </div>
+        </div>
+      )}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {navItems.map(({ to, label, icon: Icon, end, badge }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? "bg-brand-blue text-white" : "text-gray-300 hover:bg-white/5"
+              }`
+            }
+          >
+            <span className="flex items-center gap-3">
+              <Icon size={17} />
+              {label}
+            </span>
+            {!!badge && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {badge}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-white/10">
+        <button
+          onClick={() => {
+            logout();
+            setMobileOpen(false);
+            navigate(`${base}/connexion`);
+          }}
+          className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/5 text-left"
+        >
+          Déconnexion
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-64 shrink-0 bg-brand-navy text-gray-300 flex flex-col">
+    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
+      {mobileOpen && (
+        <div className="md:hidden bg-brand-navy text-gray-300 flex flex-col">{sidebarContent}</div>
+      )}
+
+      <aside className="hidden md:flex w-64 shrink-0 bg-brand-navy text-gray-300 flex-col">
         <div className="h-[70px] flex items-center px-6 border-b border-white/10">
           <span className="font-display font-bold text-xl text-white flex items-center gap-2">
             <span className="text-brand-orange">Stud</span>
             <span className="text-brand-blue -ml-1.5">Home</span>
           </span>
         </div>
-        {session && (
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-white">
-              {session.name.charAt(0)}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{session.name}</p>
-              <p className="text-xs text-gray-400">{session.role}</p>
-            </div>
-          </div>
-        )}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, label, icon: Icon, end, badge }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                  isActive ? "bg-brand-blue text-white" : "text-gray-300 hover:bg-white/5"
-                }`
-              }
-            >
-              <span className="flex items-center gap-3">
-                <Icon size={17} />
-                {label}
-              </span>
-              {!!badge && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                  {badge}
-                </span>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-white/10">
-          <button
-            onClick={() => {
-              logout();
-              navigate(`${base}/connexion`);
-            }}
-            className="w-full rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/5 text-left"
-          >
-            Déconnexion
-          </button>
-        </div>
+        {sidebarContent}
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-[70px] bg-white border-b border-gray-100 flex items-center justify-end gap-4 px-6">
-          <NotificationBell base={base} />
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue text-sm font-bold">
-              {session?.name.charAt(0)}
-            </span>
-            <span className="text-sm font-medium text-brand-navy">{session?.name}</span>
-            <ChevronDown size={14} className="text-gray-400" />
+        <header className="h-[70px] bg-white border-b border-gray-100 flex items-center justify-between md:justify-end gap-4 px-4 sm:px-6">
+          <button
+            onClick={() => setMobileOpen((o) => !o)}
+            className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-50 md:hidden"
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <div className="flex items-center gap-4">
+            <NotificationBell base={base} />
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue text-sm font-bold">
+                {session?.name.charAt(0)}
+              </span>
+              <span className="hidden sm:inline text-sm font-medium text-brand-navy">{session?.name}</span>
+              <ChevronDown size={14} className="text-gray-400" />
+            </div>
           </div>
         </header>
         <main className="flex-1 min-w-0">

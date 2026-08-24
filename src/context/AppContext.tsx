@@ -113,7 +113,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await fetchAccountData(session.user.id);
     };
 
-    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+    // Deliberately not also calling getSession() here: it can resolve with a
+    // stale/null session before the client has finished loading the stored
+    // one, which would flip authLoading to false too early and let a guard
+    // redirect away before the real session arrives. onAuthStateChange always
+    // fires once with an INITIAL_SESSION event carrying the correctly
+    // resolved session, so it alone is the race-free source of truth.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       applySession(session);
     });
