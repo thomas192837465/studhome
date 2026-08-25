@@ -7,6 +7,7 @@ import { useApp } from "../context/AppContext";
 import { Avatar } from "../components/Avatar";
 import { resizeImageFile } from "../lib/resizeImage";
 import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
+import { Autocomplete } from "../components/Autocomplete";
 
 export function Profile() {
   const { isAuthenticated, authLoading, user, credits, updateUser } = useApp();
@@ -24,6 +25,11 @@ export function Profile() {
 
   const handleChange = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
+    setSaved(false);
+  };
+
+  const handleValueChange = (field: keyof typeof form) => (v: string) => {
+    setForm((f) => ({ ...f, [field]: v }));
     setSaved(false);
   };
 
@@ -93,11 +99,11 @@ export function Profile() {
             <Field label="Nom" value={form.lastName} onChange={handleChange("lastName")} />
             <Field label="Email" type="email" value={form.email} onChange={handleChange("email")} />
             <Field label="Téléphone" value={form.phone} onChange={handleChange("phone")} />
-            <SelectField label="Ville" value={form.city} onChange={handleChange("city")} options={cameroonCities} />
-            <SelectField
+            <AutocompleteField label="Ville" value={form.city} onChange={handleValueChange("city")} options={cameroonCities} />
+            <AutocompleteField
               label="Université"
               value={form.university}
-              onChange={handleChange("university")}
+              onChange={handleValueChange("university")}
               options={cameroonUniversities}
             />
           </div>
@@ -161,7 +167,7 @@ function Field({
   );
 }
 
-function SelectField({
+function AutocompleteField({
   label,
   value,
   onChange,
@@ -169,24 +175,19 @@ function SelectField({
 }: {
   label: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onChange: (v: string) => void;
   options: string[];
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm text-gray-500">{label}</span>
-      <select
+      <Autocomplete
         value={value}
         onChange={onChange}
+        options={options}
+        placeholder="Commencez à taper..."
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-      >
-        <option value="">Sélectionner...</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+      />
     </label>
   );
 }

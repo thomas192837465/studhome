@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import type { Listing } from "../data/listingTypes";
 import { useApp } from "../context/AppContext";
 import { useListings } from "../context/ListingsContext";
+import { WatermarkedImage } from "./WatermarkedImage";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const { isFavorite, toggleFavorite, isAuthenticated } = useApp();
@@ -15,10 +16,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
     <div className="group rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <Link to={`/logements/${listing.id}`} className="block relative aspect-[4/3] overflow-hidden bg-gray-100">
         {listing.image ? (
-          <img
+          <WatermarkedImage
             src={listing.image}
             alt={listing.title}
-            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="h-full w-full"
+            imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">Aucune photo</div>

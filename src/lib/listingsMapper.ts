@@ -8,6 +8,8 @@ export interface ListingRow {
   city: string;
   quartier: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   universities: string[];
   price: number;
   period: string;
@@ -15,6 +17,7 @@ export interface ListingRow {
   equipements: string[];
   image: string;
   gallery: string[];
+  video_url: string | null;
   status: string;
   submitted_date: string;
   created_at: string;
@@ -41,6 +44,8 @@ export function rowToListing(row: ListingRow): Listing {
     city: row.city,
     quartier: row.quartier,
     address: row.address ?? "",
+    latitude: row.latitude ?? undefined,
+    longitude: row.longitude ?? undefined,
     universities: row.universities ?? [],
     price: row.price,
     period: row.period as Listing["period"],
@@ -48,6 +53,7 @@ export function rowToListing(row: ListingRow): Listing {
     equipements: row.equipements ?? [],
     image: row.image,
     gallery: row.gallery ?? [],
+    videoUrl: row.video_url ?? undefined,
     status: row.status as Listing["status"],
     submittedDate: row.submitted_date,
     createdAt: row.created_at,

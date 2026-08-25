@@ -75,6 +75,7 @@ export function OwnerProfile() {
             <input
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder="+237 6XX XXX XXX"
               className="w-full text-sm focus:outline-none"
             />
           </div>

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap } from "lucide-react";
+import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap, Video, Film } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
+import { compressVideoFile } from "../../lib/compressVideo";
+import { uploadListingVideo } from "../../lib/uploadPhoto";
+import { Autocomplete } from "../../components/Autocomplete";
 import type { ListingDraft } from "../../data/listingTypes";
 import { cameroonCities, quartiersByVille, cameroonUniversities } from "../../data/cameroonLocations";
 
@@ -33,7 +36,11 @@ export function PublishWizard() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoError, setVideoError] = useState("");
+  const [uniInput, setUniInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const initialized = useRef(false);
 
@@ -52,6 +59,7 @@ export function PublishWizard() {
         description: editingListing.description,
         equipements: editingListing.equipements,
         photos: editingListing.gallery,
+        video: editingListing.videoUrl || "",
         loyer: String(editingListing.price || ""),
         charges: [],
         caution: "1 mois",
@@ -82,6 +90,26 @@ export function PublishWizard() {
       updateDraft({ photos: [...draft.photos, ...resized] });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleVideoFile = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file || !file.type.startsWith("video/")) return;
+    if (file.size > 200 * 1024 * 1024) {
+      setVideoError("La vidéo est trop volumineuse (max 200 Mo).");
+      return;
+    }
+    setVideoError("");
+    setVideoUploading(true);
+    try {
+      const compressed = await compressVideoFile(file);
+      const url = await uploadListingVideo(compressed, ownerId ?? "anonyme");
+      updateDraft({ video: url });
+    } catch {
+      setVideoError("Échec de l'envoi de la vidéo. Réessayez.");
+    } finally {
+      setVideoUploading(false);
     }
   };
 
@@ -165,16 +193,13 @@ export function PublishWizard() {
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-brand-navy">Ville *</span>
-                <select
+                <Autocomplete
                   value={draft.ville}
-                  onChange={(e) => updateDraft({ ville: e.target.value, quartier: "" })}
+                  onChange={(v) => updateDraft({ ville: v, quartier: "" })}
+                  options={villes}
+                  placeholder="Ex : Yaoundé"
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                >
-                  <option value="">Sélectionner</option>
-                  {villes.map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-brand-navy">Quartier *</span>
@@ -221,19 +246,17 @@ export function PublishWizard() {
                     </button>
                   </span>
                 ))}
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const v = e.target.value;
+                <Autocomplete
+                  value={uniInput}
+                  onChange={setUniInput}
+                  options={universitesOptions.filter((u) => !draft.universities.includes(u))}
+                  onSelect={(v) => {
                     if (v && !draft.universities.includes(v)) updateDraft({ universities: [...draft.universities, v] });
+                    setUniInput("");
                   }}
+                  placeholder="+ Ajouter une université"
                   className="flex-1 min-w-[140px] text-sm focus:outline-none"
-                >
-                  <option value="">+ Ajouter une université</option>
-                  {universitesOptions.map((u) => (
-                    <option key={u}>{u}</option>
-                  ))}
-                </select>
+                />
               </div>
             </label>
 
@@ -352,6 +375,50 @@ export function PublishWizard() {
                 <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-brand-green" /> Évitez les photos floues ou
                 sombres
               </p>
+            </div>
+
+            <div className="mt-6">
+              <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-navy">
+                <Film size={15} /> Vidéo de présentation (optionnel)
+              </span>
+              <p className="mb-3 text-xs text-gray-500">
+                Une courte vidéo rassure les étudiants. Elle est automatiquement compressée pour rester légère tout en
+                gardant une bonne qualité.
+              </p>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  handleVideoFile(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              {draft.video ? (
+                <div className="relative overflow-hidden rounded-xl bg-black">
+                  <video src={draft.video} controls className="max-h-64 w-full" />
+                  <button
+                    onClick={() => updateDraft({ video: "" })}
+                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-700"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={videoUploading}
+                  onClick={() => videoInputRef.current?.click()}
+                  className="w-full rounded-xl border-2 border-dashed border-gray-200 py-8 flex flex-col items-center gap-2 text-sm text-gray-500 hover:border-brand-blue/40 hover:bg-brand-blue-light/30 transition-colors disabled:opacity-60"
+                >
+                  <Video size={24} className="text-gray-400" />
+                  <span>
+                    {videoUploading ? "Compression et envoi en cours..." : "Cliquez pour ajouter une vidéo"}
+                  </span>
+                </button>
+              )}
+              {videoError && <p className="mt-2 text-xs text-red-500">{videoError}</p>}
             </div>
           </div>
         )}

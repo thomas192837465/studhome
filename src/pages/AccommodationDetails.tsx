@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap, Play } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faCircleCheck, faStar as faStarSolid, faFlag } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
@@ -10,6 +10,7 @@ import { useSignalements } from "../context/SignalementsContext";
 import { MapPreview } from "../components/MapPreview";
 import { Avatar } from "../components/Avatar";
 import { StarRating } from "../components/StarRating";
+import { WatermarkedImage } from "../components/WatermarkedImage";
 
 const reportReasons = [
   "Annonce frauduleuse",
@@ -96,6 +97,16 @@ export function AccommodationDetails() {
 
   const unlocked = isUnlocked(listing.id);
   const fav = isFavorite(listing.id);
+  const slides = [
+    ...listing.gallery.map((src) => ({ type: "photo" as const, src })),
+    ...(listing.videoUrl ? [{ type: "video" as const, src: listing.videoUrl }] : []),
+  ];
+  const thumbIndexes =
+    slides.length <= 4
+      ? slides.map((_, i) => i)
+      : listing.videoUrl
+        ? [0, 1, 2, slides.length - 1]
+        : [0, 1, 2, 3];
   const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
   const publishedReviews = getPublishedForListing(listing.id);
   const avgRating = publishedReviews.length
@@ -181,8 +192,17 @@ export function AccommodationDetails() {
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8">
         <div>
           <div className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-gray-100">
-            {listing.gallery[activeImg] ? (
-              <img src={listing.gallery[activeImg]} alt={listing.title} className="h-full w-full object-cover" />
+            {slides[activeImg] ? (
+              slides[activeImg].type === "video" ? (
+                <video src={slides[activeImg].src} controls className="h-full w-full object-cover bg-black" />
+              ) : (
+                <WatermarkedImage
+                  src={slides[activeImg].src}
+                  alt={listing.title}
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
+                />
+              )
             ) : (
               <div className="h-full w-full flex items-center justify-center text-sm text-gray-400">Aucune photo</div>
             )}
@@ -195,16 +215,16 @@ export function AccommodationDetails() {
             >
               <Heart size={17} className={fav ? "fill-brand-blue text-brand-blue" : "text-brand-blue"} />
             </button>
-            {listing.gallery.length > 1 && (
+            {slides.length > 1 && (
               <>
                 <button
-                  onClick={() => setActiveImg((i) => (i - 1 + listing.gallery.length) % listing.gallery.length)}
+                  onClick={() => setActiveImg((i) => (i - 1 + slides.length) % slides.length)}
                   className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
-                  onClick={() => setActiveImg((i) => (i + 1) % listing.gallery.length)}
+                  onClick={() => setActiveImg((i) => (i + 1) % slides.length)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
                 >
                   <ChevronRight size={16} />
@@ -213,17 +233,31 @@ export function AccommodationDetails() {
             )}
           </div>
 
-          {listing.gallery.length > 1 && (
+          {slides.length > 1 && (
             <div className="mt-3 grid grid-cols-4 gap-3">
-              {listing.gallery.slice(0, 4).map((img, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImg(i)}
-                  className="aspect-square rounded-xl overflow-hidden bg-gray-100"
-                >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
+              {thumbIndexes.map((i) => {
+                const s = slides[i];
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    className={`relative aspect-square rounded-xl overflow-hidden bg-gray-100 ${
+                      activeImg === i ? "ring-2 ring-brand-blue" : ""
+                    }`}
+                  >
+                    {s.type === "video" ? (
+                      <>
+                        <video src={s.src} className="h-full w-full object-cover" muted />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play size={18} className="text-white fill-white" />
+                        </span>
+                      </>
+                    ) : (
+                      <WatermarkedImage src={s.src} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -256,7 +290,11 @@ export function AccommodationDetails() {
               Localisation {!unlocked && <Lock size={15} className="text-gray-400" />}
             </h2>
             <div className="relative aspect-[16/8] rounded-xl overflow-hidden bg-gray-100">
-              <MapPreview className={`h-full w-full ${!unlocked ? "blur-sm scale-105" : ""}`} />
+              <MapPreview
+                className={`h-full w-full ${!unlocked ? "blur-sm scale-105" : ""}`}
+                latitude={unlocked ? listing.latitude : undefined}
+                longitude={unlocked ? listing.longitude : undefined}
+              />
               {!unlocked && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/40">
                   <span className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-navy shadow">
@@ -347,7 +385,18 @@ export function AccommodationDetails() {
             </p>
             <p className="mt-1.5 flex items-center gap-1.5 text-sm">
               {unlocked ? (
-                <span className="text-brand-navy font-medium">{listing.address}</span>
+                listing.latitude != null && listing.longitude != null ? (
+                  <a
+                    href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=17/${listing.latitude}/${listing.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand-blue font-medium underline decoration-dotted underline-offset-2"
+                  >
+                    {listing.address}
+                  </a>
+                ) : (
+                  <span className="text-brand-navy font-medium">{listing.address}</span>
+                )
               ) : (
                 <>
                   <Lock size={12} className="text-gray-400" />

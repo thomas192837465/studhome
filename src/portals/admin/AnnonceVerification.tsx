@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MapPin } from "lucide-react";
 import { useListings } from "../../context/ListingsContext";
 import { useBasePath } from "./adminUi";
 import { listingStatusClass } from "../../data/listingStatus";
@@ -26,14 +27,29 @@ const checklist = [
   "Ville et quartier renseignés",
   "Adresse exacte renseignée",
   "Numéro WhatsApp valide",
+  "Coordonnées GPS renseignées (obligatoire)",
 ];
 
 export function AnnonceVerification() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
-  const { getListing, publishListing, refuseListing } = useListings();
+  const { getListing, publishListing, refuseListing, updateListingLocation } = useListings();
   const listing = id ? getListing(id) : undefined;
+
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [locInitialized, setLocInitialized] = useState(false);
+  const [locSaving, setLocSaving] = useState(false);
+  const [locSaved, setLocSaved] = useState(false);
+
+  useEffect(() => {
+    if (listing && !locInitialized) {
+      setLat(listing.latitude != null ? String(listing.latitude) : "");
+      setLng(listing.longitude != null ? String(listing.longitude) : "");
+      setLocInitialized(true);
+    }
+  }, [listing, locInitialized]);
 
   if (!listing) {
     return (
@@ -46,6 +62,8 @@ export function AnnonceVerification() {
     );
   }
 
+  const hasCoords = listing.latitude != null && listing.longitude != null;
+
   const checks = [
     listing.gallery.length > 0,
     listing.description.trim().length > 0,
@@ -53,9 +71,11 @@ export function AnnonceVerification() {
     !!listing.city && !!listing.quartier,
     !!listing.address,
     !!listing.ownerPhone,
+    hasCoords,
   ];
 
   const handlePublish = async () => {
+    if (!hasCoords) return;
     await publishListing(listing.id);
     navigate(`${base}/annonces/${listing.id}/publiee`);
   };
@@ -63,6 +83,20 @@ export function AnnonceVerification() {
   const handleRefuse = async () => {
     await refuseListing(listing.id);
     navigate(`${base}/annonces`);
+  };
+
+  const handleSaveLocation = async () => {
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) return;
+    setLocSaving(true);
+    try {
+      await updateListingLocation(listing.id, latNum, lngNum);
+      setLocSaved(true);
+      setTimeout(() => setLocSaved(false), 2500);
+    } finally {
+      setLocSaving(false);
+    }
   };
 
   return (
@@ -112,6 +146,55 @@ export function AnnonceVerification() {
           {listing.address && <p className="text-sm text-gray-500">{listing.address}</p>}
           <p className="text-sm text-gray-500">Université(s) : {listing.universities.join(", ") || "—"}</p>
 
+          <div className="mt-4 rounded-xl border border-gray-100 p-4">
+            <h3 className="flex items-center gap-1.5 font-semibold text-brand-navy text-sm mb-1.5">
+              <MapPin size={15} /> Coordonnées GPS
+            </h3>
+            <p className="mb-3 text-xs text-gray-500">
+              Le Cameroun n'a pas d'adressage postal standard. Localisez précisément le logement sur la carte à
+              partir de la description du propriétaire — cela devient l'adresse affichée à l'étudiant après
+              déblocage. Obligatoire avant publication.
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-500">Latitude</span>
+                <input
+                  value={lat}
+                  onChange={(e) => setLat(e.target.value)}
+                  placeholder="Ex : 3.8480"
+                  className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-500">Longitude</span>
+                <input
+                  value={lng}
+                  onChange={(e) => setLng(e.target.value)}
+                  placeholder="Ex : 11.5021"
+                  className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveLocation}
+              disabled={!lat || !lng || locSaving}
+              className="mt-2.5 w-full rounded-lg bg-brand-navy py-2 text-xs font-semibold text-white hover:bg-brand-navy/90 transition-colors disabled:opacity-50"
+            >
+              {locSaving ? "Enregistrement..." : locSaved ? "Coordonnées enregistrées ✓" : "Enregistrer les coordonnées"}
+            </button>
+            {hasCoords && (
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=17/${listing.latitude}/${listing.longitude}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block text-center text-xs font-medium text-brand-blue"
+              >
+                Voir la position enregistrée sur la carte
+              </a>
+            )}
+          </div>
+
           <div className="mt-4 rounded-xl border border-gray-100 p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-400">Propriétaire</p>
@@ -153,10 +236,17 @@ export function AnnonceVerification() {
           <div className="space-y-2.5">
             <button
               onClick={handlePublish}
-              className="w-full rounded-xl bg-brand-green py-2.5 font-semibold text-white hover:bg-green-700 transition-colors"
+              disabled={!hasCoords}
+              title={!hasCoords ? "Enregistrez les coordonnées GPS avant de publier" : undefined}
+              className="w-full rounded-xl bg-brand-green py-2.5 font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Publier l'annonce
             </button>
+            {!hasCoords && (
+              <p className="text-center text-xs text-amber-600">
+                Renseignez les coordonnées GPS ci-contre pour activer la publication.
+              </p>
+            )}
             <Link
               to={`${base}/annonces/${listing.id}/modifications`}
               className="block w-full rounded-xl bg-amber-100 py-2.5 text-center font-semibold text-amber-700 hover:bg-amber-200 transition-colors"

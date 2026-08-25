@@ -24,6 +24,8 @@ import {
 import heroRoom from "../assets/images/hero-room.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { CameroonFlag } from "../components/CameroonFlag";
+import { WatermarkedImage } from "../components/WatermarkedImage";
+import { Autocomplete } from "../components/Autocomplete";
 import { useListings } from "../context/ListingsContext";
 import { useSiteContent } from "../context/SiteContentContext";
 import { cameroonUniversities } from "../data/cameroonLocations";
@@ -164,29 +166,23 @@ export function Home() {
             <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Ville</label>
-                <select
+                <Autocomplete
                   value={ville}
-                  onChange={(e) => setVille(e.target.value)}
+                  onChange={setVille}
+                  options={cities}
+                  placeholder="Toutes les villes"
                   className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                >
-                  <option value="">Toutes les villes</option>
-                  {cities.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Université / Ecole</label>
-                <select
+                <Autocomplete
                   value={universite}
-                  onChange={(e) => setUniversite(e.target.value)}
+                  onChange={setUniversite}
+                  options={cameroonUniversities}
+                  placeholder="Université / Ecole"
                   className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                >
-                  <option value="">Université / Ecole</option>
-                  {cameroonUniversities.map((u) => (
-                    <option key={u}>{u}</option>
-                  ))}
-                </select>
+                />
               </div>
               <button
                 onClick={handleSearch}
@@ -278,10 +274,11 @@ export function Home() {
           {activeCarouselListing ? (
             <Link to={`/logements/${activeCarouselListing.id}`}>
               {activeCarouselListing.image ? (
-                <img
+                <WatermarkedImage
                   src={activeCarouselListing.image}
                   alt={activeCarouselListing.title}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-gray-300">

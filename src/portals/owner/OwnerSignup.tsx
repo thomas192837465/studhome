@@ -13,7 +13,7 @@ export function OwnerSignup() {
   const { sendOtp, verifyOtp } = useOwner();
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("+237 699 999 999");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
@@ -113,6 +113,7 @@ export function OwnerSignup() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     type="tel"
+                    placeholder="+237 6XX XXX XXX"
                     required
                     className="w-full text-sm focus:outline-none"
                   />

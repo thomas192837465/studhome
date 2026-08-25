@@ -1,4 +1,25 @@
-export function MapPreview({ className = "" }: { className?: string }) {
+export function MapPreview({
+  className = "",
+  latitude,
+  longitude,
+}: {
+  className?: string;
+  latitude?: number;
+  longitude?: number;
+}) {
+  if (latitude != null && longitude != null) {
+    const delta = 0.006;
+    const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join(",");
+    return (
+      <iframe
+        title="Localisation du logement"
+        className={className}
+        style={{ border: 0 }}
+        src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude},${longitude}`}
+      />
+    );
+  }
+
   return (
     <svg viewBox="0 0 400 200" className={className} xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
       <rect width="400" height="200" fill="#EAF7FD" />

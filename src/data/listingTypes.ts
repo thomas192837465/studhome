@@ -14,6 +14,8 @@ export interface Listing {
   city: string;
   quartier: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   universities: string[];
   price: number;
   period: "mois" | "an";
@@ -21,6 +23,7 @@ export interface Listing {
   equipements: string[];
   image: string;
   gallery: string[];
+  videoUrl?: string;
   status: ListingStatus;
   submittedDate: string;
   createdAt: string;
@@ -51,6 +54,7 @@ export interface ListingDraft {
   description: string;
   equipements: string[];
   photos: string[];
+  video: string;
   loyer: string;
   charges: string[];
   caution: string;
@@ -66,6 +70,7 @@ export const emptyDraft: ListingDraft = {
   description: "",
   equipements: [],
   photos: [],
+  video: "",
   loyer: "",
   charges: [],
   caution: "1 mois",

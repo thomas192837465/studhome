@@ -22,6 +22,7 @@ interface ListingsContextValue {
   submitListing: (draft: ListingDraft, owner: OwnerIdentity, unlockCost?: number) => Promise<string>;
   updateListing: (id: string, draft: ListingDraft, ownerId: string) => Promise<void>;
   publishListing: (id: string) => Promise<void>;
+  updateListingLocation: (id: string, latitude: number, longitude: number) => Promise<void>;
   refuseListing: (id: string) => Promise<void>;
   requestModification: (id: string, message: string, reason: string) => Promise<void>;
   recordView: (id: string) => Promise<void>;
@@ -94,6 +95,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         equipements: draft.equipements,
         image: galleryUrls[0] ?? "",
         gallery: galleryUrls,
+        video_url: draft.video || null,
         status: "En attente",
         unlock_cost: unlockCost,
         owner_id: owner.id,
@@ -132,6 +134,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         equipements: draft.equipements,
         image: galleryUrls[0] ?? "",
         gallery: galleryUrls,
+        video_url: draft.video || null,
         status: "En attente",
         modification_message: null,
         modification_reason: null,
@@ -144,6 +147,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
   const publishListing = async (id: string) => {
     await supabase.from("listings").update({ status: "Publiée" }).eq("id", id);
+    await fetchListings();
+  };
+
+  const updateListingLocation = async (id: string, latitude: number, longitude: number) => {
+    const { error } = await supabase.from("listings").update({ latitude, longitude }).eq("id", id);
+    if (error) throw error;
     await fetchListings();
   };
 
@@ -196,6 +205,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       submitListing,
       updateListing,
       publishListing,
+      updateListingLocation,
       refuseListing,
       requestModification,
       recordView,

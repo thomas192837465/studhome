@@ -447,3 +447,30 @@ create policy "city_photos_bucket_write_temp" on storage.objects
   for insert with check (bucket_id = 'city-photos');
 create policy "city_photos_bucket_delete_temp" on storage.objects
   for delete using (bucket_id = 'city-photos');
+
+-- ============================================================================
+-- Migration 7: listing video, and admin-pinned GPS coordinates. Cameroon
+-- addresses are landmark descriptions ("en face de la pharmacie X"), not
+-- postal addresses — the owner's free-text address stays as the human
+-- description, and the admin adds real lat/lng during verification so the
+-- map can show an actual pin once the listing is published.
+-- ============================================================================
+
+alter table public.listings add column if not exists video_url text;
+alter table public.listings add column if not exists latitude numeric;
+alter table public.listings add column if not exists longitude numeric;
+
+insert into storage.buckets (id, name, public)
+values ('listing-videos', 'listing-videos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "listing_videos_read" on storage.objects;
+drop policy if exists "listing_videos_write_temp" on storage.objects;
+drop policy if exists "listing_videos_delete_temp" on storage.objects;
+
+create policy "listing_videos_read" on storage.objects
+  for select using (bucket_id = 'listing-videos');
+create policy "listing_videos_write_temp" on storage.objects
+  for insert with check (bucket_id = 'listing-videos');
+create policy "listing_videos_delete_temp" on storage.objects
+  for delete using (bucket_id = 'listing-videos');

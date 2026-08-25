@@ -25,6 +25,18 @@ export async function uploadListingPhotos(dataUrls: string[], listingFolder: str
   return Promise.all(dataUrls.map((url, i) => uploadListingPhoto(url, listingFolder, i)));
 }
 
+export async function uploadListingVideo(blob: Blob, ownerFolder: string): Promise<string> {
+  const ext = blob.type.includes("webm") ? "webm" : "mp4";
+  const path = `${ownerFolder}/${Date.now()}-video.${ext}`;
+  const { error } = await supabase.storage.from("listing-videos").upload(path, blob, {
+    contentType: blob.type || "video/webm",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("listing-videos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export async function uploadCityPhoto(dataUrl: string, city: string): Promise<string> {
   const blob = dataUrlToBlob(dataUrl);
   const path = `${city.toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now()}.jpg`;

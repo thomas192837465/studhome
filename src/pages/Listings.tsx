@@ -5,6 +5,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
 import { ListingCard } from "../components/ListingCard";
+import { Autocomplete } from "../components/Autocomplete";
+import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
 
 const typeOptions = ["Chambre", "Studio", "Appartement", "Résidence étudiante", "Colocation"] as const;
 
@@ -65,9 +67,10 @@ export function Listings() {
           <FontAwesomeIcon icon={faLocationDot} className="h-4 w-4 text-gray-400" />
           <div className="flex-1">
             <p className="text-[11px] text-gray-400">Ville</p>
-            <input
+            <Autocomplete
               value={ville}
-              onChange={(e) => setVille(e.target.value)}
+              onChange={setVille}
+              options={cameroonCities}
               placeholder="Toutes les villes"
               className="w-full text-sm font-medium text-brand-navy focus:outline-none"
             />
@@ -77,9 +80,10 @@ export function Listings() {
           <FontAwesomeIcon icon={faGraduationCap} className="h-4 w-4 text-gray-400" />
           <div className="flex-1">
             <p className="text-[11px] text-gray-400">Université/Ecole</p>
-            <input
+            <Autocomplete
               value={universite}
-              onChange={(e) => setUniversite(e.target.value)}
+              onChange={setUniversite}
+              options={cameroonUniversities}
               placeholder="Toutes les universités"
               className="w-full text-sm font-medium text-brand-navy focus:outline-none"
             />
