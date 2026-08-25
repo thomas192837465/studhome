@@ -141,9 +141,18 @@ export function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10 pt-10 pb-28 grid lg:grid-cols-2 gap-10 items-center">
-          <div>
+      <section className="relative min-h-[560px] sm:min-h-[600px] overflow-hidden">
+        <img
+          key={activeHeroImage}
+          src={activeHeroImage}
+          alt="Chambre étudiante"
+          className="absolute inset-0 h-full w-full object-cover animate-[heroFade_0.6s_ease-in-out]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white via-white/85 sm:via-white/70 to-white/40 lg:to-transparent" />
+        <CameroonFlag className="absolute top-6 right-6 lg:top-8 lg:right-10 h-8 w-12 rounded-md shadow-lg overflow-hidden" />
+
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-10 pt-16 pb-32 sm:pt-20 sm:pb-28">
+          <div className="max-w-lg">
             <h1 className="font-display text-4xl sm:text-5xl font-bold leading-tight text-brand-navy">
               Le logement étudiant, simple, sûr et abordable
             </h1>
@@ -164,16 +173,6 @@ export function Home() {
                 Comment ça marche ?
               </Link>
             </div>
-          </div>
-          <div className="relative rounded-3xl overflow-hidden aspect-[4/3]">
-            <img
-              key={activeHeroImage}
-              src={activeHeroImage}
-              alt="Chambre étudiante"
-              className="h-full w-full object-cover animate-[heroFade_0.6s_ease-in-out]"
-            />
-            <div className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-r from-white via-white/10 to-transparent" />
-            <CameroonFlag className="absolute top-4 right-4 h-8 w-12 rounded-md shadow-lg overflow-hidden" />
           </div>
         </div>
 
