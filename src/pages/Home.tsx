@@ -141,17 +141,17 @@ export function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative min-h-[560px] sm:min-h-[600px] overflow-hidden">
+      <section className="relative min-h-[440px] sm:min-h-[500px] overflow-hidden">
         <img
           key={activeHeroImage}
           src={activeHeroImage}
           alt="Chambre étudiante"
           className="absolute inset-0 h-full w-full object-cover animate-[heroFade_0.6s_ease-in-out]"
         />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white via-white/85 sm:via-white/70 to-white/40 lg:to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,white_0%,white_18%,rgba(255,255,255,0.55)_32%,rgba(255,255,255,0)_48%)]" />
         <CameroonFlag className="absolute top-6 right-6 lg:top-8 lg:right-10 h-8 w-12 rounded-md shadow-lg overflow-hidden" />
 
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-10 pt-16 pb-32 sm:pt-20 sm:pb-28">
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-10 pt-16 pb-16 sm:pt-20">
           <div className="max-w-lg">
             <h1 className="font-display text-4xl sm:text-5xl font-bold leading-tight text-brand-navy">
               Le logement étudiant, simple, sûr et abordable
@@ -175,44 +175,44 @@ export function Home() {
             </div>
           </div>
         </div>
-
-        <div className="absolute bottom-0 left-1/2 w-full max-w-3xl -translate-x-1/2 translate-y-1/2 px-4">
-          <div className="rounded-2xl bg-white shadow-xl border border-gray-100 p-6">
-            <h3 className="font-semibold text-brand-navy mb-4">Où souhaitez-vous étudier ?</h3>
-            <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Ville</label>
-                <Autocomplete
-                  value={ville}
-                  onChange={setVille}
-                  options={cities}
-                  placeholder="Toutes les villes"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Université / Ecole</label>
-                <Autocomplete
-                  value={universite}
-                  onChange={setUniversite}
-                  options={cameroonUniversities}
-                  placeholder="Université / Ecole"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                />
-              </div>
-              <button
-                onClick={handleSearch}
-                className="flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-5 py-2.5 font-semibold text-white hover:bg-brand-orange-dark transition-colors"
-              >
-                <Search size={16} /> Rechercher
-              </button>
-            </div>
-          </div>
-        </div>
       </section>
 
+      <div className="relative z-10 mx-auto max-w-3xl px-4 -mt-10 sm:-mt-12">
+        <div className="rounded-2xl bg-white shadow-xl border border-gray-100 p-6">
+          <h3 className="font-semibold text-brand-navy mb-4">Où souhaitez-vous étudier ?</h3>
+          <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Ville</label>
+              <Autocomplete
+                value={ville}
+                onChange={setVille}
+                options={cities}
+                placeholder="Toutes les villes"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Université / Ecole</label>
+              <Autocomplete
+                value={universite}
+                onChange={setUniversite}
+                options={cameroonUniversities}
+                placeholder="Université / Ecole"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              className="flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-5 py-2.5 font-semibold text-white hover:bg-brand-orange-dark transition-colors"
+            >
+              <Search size={16} /> Rechercher
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Stats */}
-      <section className="mt-24 sm:mt-16">
+      <section className="mt-12 sm:mt-16">
         <div className="mx-auto max-w-5xl px-6">
           <div className="rounded-2xl bg-brand-blue-light px-6 py-5 flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
             {siteStats.map((stat) => (
