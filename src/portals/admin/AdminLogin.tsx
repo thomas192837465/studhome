@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { supabase } from "../../lib/supabase";
+import { Logo } from "../../components/Logo";
 
 export function AdminLogin() {
   const location = useLocation();
@@ -52,11 +53,10 @@ export function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-3xl grid sm:grid-cols-2 rounded-3xl overflow-hidden shadow-xl border border-gray-100">
         <div className="bg-brand-navy p-10 flex flex-col items-center justify-center text-center text-white">
-          <span className="font-display font-bold text-2xl mb-1">
-            <span className="text-brand-orange">Stud</span>
-            <span className="text-brand-blue">Home</span>
-          </span>
-          <span className="mb-8 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-gray-200">
+          <div className="mb-1 scale-125">
+            <Logo />
+          </div>
+          <span className="mt-3 mb-8 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-gray-200">
             {isSuper ? "Super Admin" : "Admin"}
           </span>
           <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10">

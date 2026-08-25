@@ -23,6 +23,7 @@ import { useListings } from "../../context/ListingsContext";
 import { useReviews } from "../../context/ReviewsContext";
 import { useSignalements } from "../../context/SignalementsContext";
 import { NotificationBell } from "./NotificationBell";
+import { Logo } from "../../components/Logo";
 
 export function AdminLayout() {
   const { session, logout } = useAdminPortal();
@@ -119,10 +120,7 @@ export function AdminLayout() {
 
       <aside className="hidden md:flex w-64 shrink-0 bg-brand-navy text-gray-300 flex-col">
         <div className="h-[70px] flex items-center px-6 border-b border-white/10">
-          <span className="font-display font-bold text-xl text-white flex items-center gap-2">
-            <span className="text-brand-orange">Stud</span>
-            <span className="text-brand-blue -ml-1.5">Home</span>
-          </span>
+          <Logo />
         </div>
         {sidebarContent}
       </aside>
