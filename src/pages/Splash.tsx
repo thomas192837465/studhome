@@ -13,7 +13,7 @@ export function Splash() {
     // there's no way to point them at /admin/definir-mot-de-passe directly.
     // Catch that case here at the root and forward the session hash along.
     const hash = window.location.hash;
-    if (hash.includes("type=invite") || hash.includes("type=recovery")) {
+    if (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("error=")) {
       navigate(`/admin/definir-mot-de-passe${hash}`, { replace: true });
       return;
     }
