@@ -6,7 +6,7 @@ import { faCheck } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
-import { compressVideoFile } from "../../lib/compressVideo";
+import { getVideoDuration } from "../../lib/validateVideo";
 import { uploadListingVideo } from "../../lib/uploadPhoto";
 import { Autocomplete } from "../../components/Autocomplete";
 import type { ListingDraft } from "../../data/listingTypes";
@@ -15,6 +15,8 @@ import { cameroonCities, quartiersByVille, cameroonUniversities } from "../../da
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
 const MAX_PHOTOS = 15;
+const MAX_VIDEO_MB = 50;
+const MAX_VIDEO_SECONDS = 60;
 
 const typeOptions = [
   { id: "Chambre", icon: Bed, desc: "Chambre simple avec accès aux espaces communs" },
@@ -96,15 +98,19 @@ export function PublishWizard() {
   const handleVideoFile = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file || !file.type.startsWith("video/")) return;
-    if (file.size > 200 * 1024 * 1024) {
-      setVideoError("La vidéo est trop volumineuse (max 200 Mo).");
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setVideoError(`La vidéo est trop volumineuse (max ${MAX_VIDEO_MB} Mo).`);
       return;
     }
     setVideoError("");
     setVideoUploading(true);
     try {
-      const compressed = await compressVideoFile(file);
-      const url = await uploadListingVideo(compressed, ownerId ?? "anonyme");
+      const duration = await getVideoDuration(file);
+      if (duration > MAX_VIDEO_SECONDS) {
+        setVideoError(`La vidéo est trop longue (max ${MAX_VIDEO_SECONDS} secondes).`);
+        return;
+      }
+      const url = await uploadListingVideo(file, ownerId ?? "anonyme");
       updateDraft({ video: url });
     } catch {
       setVideoError("Échec de l'envoi de la vidéo. Réessayez.");
@@ -382,8 +388,7 @@ export function PublishWizard() {
                 <Film size={15} /> Vidéo de présentation (optionnel)
               </span>
               <p className="mb-3 text-xs text-gray-500">
-                Une courte vidéo rassure les étudiants. Elle est automatiquement compressée pour rester légère tout en
-                gardant une bonne qualité.
+                Une courte vidéo rassure les étudiants. Max {MAX_VIDEO_SECONDS} secondes, {MAX_VIDEO_MB} Mo.
               </p>
               <input
                 ref={videoInputRef}
@@ -414,7 +419,7 @@ export function PublishWizard() {
                 >
                   <Video size={24} className="text-gray-400" />
                   <span>
-                    {videoUploading ? "Compression et envoi en cours..." : "Cliquez pour ajouter une vidéo"}
+                    {videoUploading ? "Envoi en cours..." : "Cliquez pour ajouter une vidéo"}
                   </span>
                 </button>
               )}
