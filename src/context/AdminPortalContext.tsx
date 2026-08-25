@@ -1,54 +1,173 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { AdminSession, PortalRole } from "../data/adminTypes";
-import { seedTransactions, seedLogs } from "../data/adminSeed";
+import { supabase } from "../lib/supabase";
+import type { ProfileRow } from "../lib/profileMapper";
+import type { AdminSession, ActivityLog, PortalRole } from "../data/adminTypes";
+import { seedTransactions } from "../data/adminSeed";
 
-interface PersistedAdminState {
-  session: AdminSession | null;
+function roleToPortalRole(role: string): PortalRole | null {
+  if (role === "admin") return "Admin";
+  if (role === "superadmin") return "Super Admin";
+  return null;
 }
 
-const STORAGE_KEY = "studhome-admin-state-v2";
+function profileToSession(profile: ProfileRow): AdminSession | null {
+  const role = roleToPortalRole(profile.role);
+  if (!role) return null;
+  const name = `${profile.first_name} ${profile.last_name}`.trim() || profile.email || "Admin";
+  return { id: profile.id, name, email: profile.email ?? "", role };
+}
 
-function loadState(): PersistedAdminState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PersistedAdminState;
-  } catch {
-    // ignore
+async function fetchProfile(id: string): Promise<ProfileRow | null> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    if (data) return data as ProfileRow;
+    if (error) break;
+    await new Promise((r) => setTimeout(r, 350));
   }
-  return { session: null };
+  return null;
 }
 
 interface AdminPortalContextValue {
   session: AdminSession | null;
+  authLoading: boolean;
+  authError: string;
   transactions: typeof seedTransactions;
-  logs: typeof seedLogs;
-  login: (role: PortalRole, name?: string) => void;
-  logout: () => void;
+  logs: ActivityLog[];
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  logAction: (action: string, cible?: string, details?: string) => Promise<void>;
 }
 
 const AdminPortalContext = createContext<AdminPortalContextValue | null>(null);
 
 export function AdminPortalProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedAdminState>(loadState);
+  const [session, setSession] = useState<AdminSession | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    let active = true;
 
-  const login = (role: PortalRole, name?: string) =>
-    setState((s) => ({ ...s, session: { role, name: name ?? role } }));
+    const applySession = async (authSession: { user: { id: string } } | null) => {
+      if (!authSession?.user) {
+        if (!active) return;
+        setSession(null);
+        setAuthLoading(false);
+        return;
+      }
+      const profile = await fetchProfile(authSession.user.id);
+      if (!active) return;
+      // A session can belong to a student/owner account browsing while an
+      // admin portal tab is also open — only treat it as admin-authenticated
+      // when the profile was actually created with an admin/superadmin role.
+      setSession(profile ? profileToSession(profile) : null);
+      setAuthLoading(false);
+    };
 
-  const logout = () => setState((s) => ({ ...s, session: null }));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, authSession) => {
+      applySession(authSession);
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setLogs([]);
+      return;
+    }
+
+    const fetchLogs = async () => {
+      const { data } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (data) {
+        setLogs(
+          data.map((row) => ({
+            id: row.id,
+            time: row.created_at,
+            admin: row.admin_name,
+            action: row.action,
+            cible: row.cible,
+            details: row.details,
+            ip: row.ip,
+          })),
+        );
+      }
+    };
+
+    fetchLogs();
+
+    const channel = supabase
+      .channel("activity-logs-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "activity_logs" }, () => {
+        fetchLogs();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
+  const loginWithPassword = async (email: string, password: string) => {
+    setAuthError("");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw new Error("Email ou mot de passe incorrect.");
+    }
+    const profile = data.user ? await fetchProfile(data.user.id) : null;
+    const nextSession = profile ? profileToSession(profile) : null;
+    if (!nextSession) {
+      await supabase.auth.signOut();
+      throw new Error("Ce compte n'a pas accès à l'espace administrateur.");
+    }
+    setSession(nextSession);
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
+  const logAction = async (action: string, cible = "", details = "") => {
+    if (!session) return;
+    let ip = "";
+    try {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      ip = data.ip ?? "";
+    } catch {
+      // best-effort only — a missing IP shouldn't block the log entry
+    }
+    await supabase.from("activity_logs").insert({
+      admin_id: session.id,
+      admin_name: session.name,
+      action,
+      cible,
+      details,
+      ip,
+    });
+  };
 
   const value = useMemo<AdminPortalContextValue>(
     () => ({
-      session: state.session,
+      session,
+      authLoading,
+      authError,
       transactions: seedTransactions,
-      logs: seedLogs,
-      login,
+      logs,
+      loginWithPassword,
       logout,
+      logAction,
     }),
-    [state],
+    [session, authLoading, authError, logs],
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

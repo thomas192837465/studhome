@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bold, Italic, List, ListOrdered, Info } from "lucide-react";
 import { useListings } from "../../context/ListingsContext";
+import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useBasePath } from "./adminUi";
 import { listingStatusClass } from "../../data/listingStatus";
+import { notifyListingStatus } from "../../lib/notify";
 
 const defaultMessage = `Bonjour,
 
@@ -21,6 +23,7 @@ export function DemandeModifications() {
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
   const { getListing, requestModification } = useListings();
+  const { logAction } = useAdminPortal();
   const listing = id ? getListing(id) : undefined;
   const [message, setMessage] = useState(defaultMessage);
   const [reason, setReason] = useState("Informations incomplètes");
@@ -29,6 +32,15 @@ export function DemandeModifications() {
 
   const handleSend = async () => {
     await requestModification(listing.id, message, reason);
+    await logAction("Demande de modification", listing.title, reason);
+    await notifyListingStatus({
+      to: listing.ownerEmail ?? "",
+      ownerName: listing.ownerName,
+      listingTitle: listing.title,
+      status: "modification",
+      reason,
+      message,
+    });
     navigate(`${base}/annonces`);
   };
 
@@ -63,7 +75,7 @@ export function DemandeModifications() {
             </div>
           </label>
           <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
-            <Info size={13} /> Le propriétaire recevra une notification par email et SMS.
+            <Info size={13} /> Le propriétaire recevra une notification par email.
           </p>
 
           <div className="mt-5 flex gap-3">

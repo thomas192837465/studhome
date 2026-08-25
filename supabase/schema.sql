@@ -474,3 +474,94 @@ create policy "listing_videos_write_temp" on storage.objects
   for insert with check (bucket_id = 'listing-videos');
 create policy "listing_videos_delete_temp" on storage.objects
   for delete using (bucket_id = 'listing-videos');
+
+-- ============================================================================
+-- Migration 8: real admin/superadmin accounts, activity logs, and the
+-- owner's email denormalized onto listings (for status-change notifications).
+-- Admin/superadmin login was a local mock (AdminPortalContext) with no real
+-- identity to check RLS against — this migration makes admin accounts real
+-- Supabase Auth users (invited by a superadmin, never self-signup), which is
+-- what makes it safe to open profiles/favorites/unlocked_listings/
+-- credit_transactions to admin-only reads, and to attribute activity log
+-- entries to a real admin.
+-- ============================================================================
+
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('etudiant', 'proprietaire', 'admin', 'superadmin'));
+
+-- security definer + a fixed search_path so this can be called from other
+-- tables' RLS policies without re-triggering profiles' own RLS recursively.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role in ('admin', 'superadmin')
+  );
+$$;
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'superadmin'
+  );
+$$;
+
+-- Admins can read every profile (needed for the Propriétaires/Étudiants
+-- directories), on top of each user's existing "read your own row" policy.
+drop policy if exists "profiles_admin_read_all" on public.profiles;
+create policy "profiles_admin_read_all" on public.profiles
+  for select using (public.is_admin());
+
+drop policy if exists "favorites_admin_read_all" on public.favorites;
+create policy "favorites_admin_read_all" on public.favorites
+  for select using (public.is_admin());
+
+drop policy if exists "unlocked_listings_admin_read_all" on public.unlocked_listings;
+create policy "unlocked_listings_admin_read_all" on public.unlocked_listings
+  for select using (public.is_admin());
+
+drop policy if exists "credit_transactions_admin_read_all" on public.credit_transactions;
+create policy "credit_transactions_admin_read_all" on public.credit_transactions
+  for select using (public.is_admin());
+
+-- One row per admin action (login, publish/refuse/request modification on a
+-- listing, invite/revoke an admin, ...). Only admins can write or read it.
+create table if not exists public.activity_logs (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid references public.profiles (id) on delete set null,
+  admin_name text not null,
+  action text not null,
+  cible text not null default '',
+  details text not null default '',
+  ip text not null default '',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists activity_logs_created_at_idx on public.activity_logs (created_at desc);
+
+alter table public.activity_logs enable row level security;
+
+drop policy if exists "activity_logs_admin_select" on public.activity_logs;
+drop policy if exists "activity_logs_admin_insert" on public.activity_logs;
+
+create policy "activity_logs_admin_select" on public.activity_logs
+  for select using (public.is_admin());
+create policy "activity_logs_admin_insert" on public.activity_logs
+  for insert with check (public.is_admin());
+
+alter publication supabase_realtime add table public.activity_logs;
+
+-- Owner's email, denormalized onto the listing like owner_name/owner_phone
+-- already are — listings.owner_id is a plain text column (not an FK to
+-- profiles), so this avoids a join just to notify the owner by email.
+alter table public.listings add column if not exists owner_email text;

@@ -31,10 +31,15 @@ import { OwnerStatistiques } from "./portals/owner/OwnerStatistiques";
 import { OwnerProfile } from "./portals/owner/OwnerProfile";
 
 import { AdminLogin } from "./portals/admin/AdminLogin";
+import { AdminSetPassword } from "./portals/admin/AdminSetPassword";
 import { AdminGuard } from "./portals/admin/AdminGuard";
 import { AdminLayout } from "./portals/admin/AdminLayout";
 import { AdminDashboard } from "./portals/admin/AdminDashboard";
 import { AnnoncesEnAttente } from "./portals/admin/AnnoncesEnAttente";
+import { AdminProprietaires } from "./portals/admin/AdminProprietaires";
+import { AdminProprietaireDetail } from "./portals/admin/AdminProprietaireDetail";
+import { AdminEtudiants } from "./portals/admin/AdminEtudiants";
+import { AdminEtudiantDetail } from "./portals/admin/AdminEtudiantDetail";
 import { AnnonceVerification } from "./portals/admin/AnnonceVerification";
 import { DemandeModifications } from "./portals/admin/DemandeModifications";
 import { AnnoncePublieeConfirmation } from "./portals/admin/AnnoncePublieeConfirmation";
@@ -47,7 +52,7 @@ import { LogsActivite } from "./portals/admin/LogsActivite";
 import { Avis } from "./portals/admin/Avis";
 import { AdminSettings } from "./portals/admin/AdminSettings";
 import { AdminPlaceholder } from "./portals/admin/AdminPlaceholder";
-import { Users, GraduationCap, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 
 function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
   return (
@@ -64,14 +69,10 @@ function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
           <Route path={`/${base}/signalements`} element={<Signalements />} />
           <Route path={`/${base}/paiements`} element={<Paiements />} />
           <Route path={`/${base}/statistiques`} element={<Statistiques />} />
-          <Route
-            path={`/${base}/proprietaires`}
-            element={<AdminPlaceholder icon={Users} title="Propriétaires" description="Gérez les comptes propriétaires de la plateforme." />}
-          />
-          <Route
-            path={`/${base}/etudiants`}
-            element={<AdminPlaceholder icon={GraduationCap} title="Étudiants" description="Gérez les comptes étudiants de la plateforme." />}
-          />
+          <Route path={`/${base}/proprietaires`} element={<AdminProprietaires />} />
+          <Route path={`/${base}/proprietaires/:id`} element={<AdminProprietaireDetail />} />
+          <Route path={`/${base}/etudiants`} element={<AdminEtudiants />} />
+          <Route path={`/${base}/etudiants/:id`} element={<AdminEtudiantDetail />} />
           <Route
             path={`/${base}/messages`}
             element={<AdminPlaceholder icon={MessageSquare} title="Messages" description="Messagerie interne avec les utilisateurs." />}
@@ -131,6 +132,7 @@ function App() {
       </Route>
 
       {/* Parcours administrateur */}
+      <Route path="/admin/definir-mot-de-passe" element={<AdminSetPassword />} />
       {AdminPortalRoutes({ base: "admin" })}
 
       {/* Parcours super admin */}

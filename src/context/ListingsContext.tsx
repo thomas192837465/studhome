@@ -9,6 +9,7 @@ interface OwnerIdentity {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   avatarImg?: string;
   memberSince: string;
 }
@@ -101,6 +102,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         owner_id: owner.id,
         owner_name: owner.name,
         owner_phone: owner.phone,
+        owner_email: owner.email ?? null,
         owner_avatar_img: owner.avatarImg ?? null,
         owner_member_since: owner.memberSince,
       })

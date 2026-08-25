@@ -1,18 +1,33 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 
 export function LogsActivite() {
   const { logs } = useAdminPortal();
   const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const [adminFilter, setAdminFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
 
-  const filtered = logs.filter(
-    (l) =>
-      !search ||
-      l.admin.toLowerCase().includes(search.toLowerCase()) ||
-      l.action.toLowerCase().includes(search.toLowerCase()) ||
-      l.cible.toLowerCase().includes(search.toLowerCase()),
-  );
+  const adminNames = useMemo(() => Array.from(new Set(logs.map((l) => l.admin))).sort(), [logs]);
+  const actionTypes = useMemo(() => Array.from(new Set(logs.map((l) => l.action))).sort(), [logs]);
+
+  const filtered = logs.filter((l) => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (
+        !l.admin.toLowerCase().includes(q) &&
+        !l.action.toLowerCase().includes(q) &&
+        !l.cible.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+    if (date && !l.time.startsWith(date)) return false;
+    if (adminFilter && l.admin !== adminFilter) return false;
+    if (actionFilter && l.action !== actionFilter) return false;
+    return true;
+  });
 
   return (
     <div className="p-6 sm:p-10">
@@ -20,15 +35,35 @@ export function LogsActivite() {
       <p className="text-sm text-gray-500 mb-6">Consultez toutes les actions effectuées sur la plateforme.</p>
 
       <div className="flex flex-wrap gap-3 mb-5">
-        <input type="date" className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
-        <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
-          <option>Tous les administrateurs</option>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none"
+        />
+        <select
+          value={adminFilter}
+          onChange={(e) => setAdminFilter(e.target.value)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none"
+        >
+          <option value="">Tous les administrateurs</option>
+          {adminNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
         </select>
-        <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
-          <option>Tous les types d'action</option>
-          <option>Publication d'annonce</option>
-          <option>Demande de modification</option>
-          <option>Réponse signalement</option>
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none"
+        >
+          <option value="">Tous les types d'action</option>
+          {actionTypes.map((action) => (
+            <option key={action} value={action}>
+              {action}
+            </option>
+          ))}
         </select>
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 flex-1 min-w-[160px]">
           <Search size={15} className="text-gray-400" />
@@ -57,13 +92,13 @@ export function LogsActivite() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
-                  Aucun log pour l'instant — l'enregistrement réel des actions n'est pas encore branché.
+                  Aucun log ne correspond à ces filtres.
                 </td>
               </tr>
             )}
             {filtered.map((l) => (
               <tr key={l.id} className="border-b border-gray-50 last:border-0">
-                <td className="px-5 py-3.5 text-gray-500">{l.time}</td>
+                <td className="px-5 py-3.5 text-gray-500">{new Date(l.time).toLocaleString("fr-FR")}</td>
                 <td className="px-5 py-3.5 text-brand-navy font-medium">{l.admin}</td>
                 <td className="px-5 py-3.5 text-gray-600">{l.action}</td>
                 <td className="px-5 py-3.5 text-gray-600">{l.cible}</td>
@@ -73,9 +108,6 @@ export function LogsActivite() {
             ))}
           </tbody>
         </table>
-      </div>
-      <div className="mt-4 text-center">
-        <button className="text-sm font-semibold text-brand-blue">Voir plus de logs</button>
       </div>
     </div>
   );

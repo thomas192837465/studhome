@@ -29,6 +29,8 @@ export interface ActivityLog {
 }
 
 export interface AdminSession {
+  id: string;
   name: string;
+  email: string;
   role: PortalRole;
 }

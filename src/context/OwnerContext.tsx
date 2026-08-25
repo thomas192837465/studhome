@@ -188,6 +188,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       id: authUserId,
       name: ownerUser.fullName,
       phone: ownerUser.phone,
+      email: ownerUser.email,
       avatarImg: ownerUser.avatar,
       memberSince: ownerUser.memberSince,
     });

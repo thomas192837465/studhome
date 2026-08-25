@@ -224,7 +224,7 @@ export function PublishWizard() {
             </div>
 
             <label className="block mt-4">
-              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Adresse exacte *</span>
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Zone de localisation *</span>
               <input
                 value={draft.address}
                 onChange={(e) => updateDraft({ address: e.target.value })}

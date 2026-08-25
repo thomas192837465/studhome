@@ -32,6 +32,7 @@ export interface Listing {
   ownerId: string;
   ownerName: string;
   ownerPhone: string;
+  ownerEmail?: string;
   ownerAvatarImg?: string;
   ownerMemberSince: string;
 

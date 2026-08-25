@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, MapPin } from "lucide-react";
 import { useListings } from "../../context/ListingsContext";
+import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useBasePath } from "./adminUi";
 import { listingStatusClass } from "../../data/listingStatus";
+import { notifyListingStatus } from "../../lib/notify";
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return (
@@ -35,6 +37,7 @@ export function AnnonceVerification() {
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
   const { getListing, publishListing, refuseListing, updateListingLocation } = useListings();
+  const { logAction } = useAdminPortal();
   const listing = id ? getListing(id) : undefined;
 
   const [lat, setLat] = useState("");
@@ -77,11 +80,25 @@ export function AnnonceVerification() {
   const handlePublish = async () => {
     if (!hasCoords) return;
     await publishListing(listing.id);
+    await logAction("Publication d'annonce", listing.title);
+    await notifyListingStatus({
+      to: listing.ownerEmail ?? "",
+      ownerName: listing.ownerName,
+      listingTitle: listing.title,
+      status: "publiee",
+    });
     navigate(`${base}/annonces/${listing.id}/publiee`);
   };
 
   const handleRefuse = async () => {
     await refuseListing(listing.id);
+    await logAction("Refus d'annonce", listing.title);
+    await notifyListingStatus({
+      to: listing.ownerEmail ?? "",
+      ownerName: listing.ownerName,
+      listingTitle: listing.title,
+      status: "refusee",
+    });
     navigate(`${base}/annonces`);
   };
 
@@ -92,6 +109,7 @@ export function AnnonceVerification() {
     setLocSaving(true);
     try {
       await updateListingLocation(listing.id, latNum, lngNum);
+      await logAction("Coordonnées GPS enregistrées", listing.title, `${latNum}, ${lngNum}`);
       setLocSaved(true);
       setTimeout(() => setLocSaved(false), 2500);
     } finally {

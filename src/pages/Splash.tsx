@@ -8,6 +8,16 @@ export function Splash() {
   const { isAuthenticated } = useApp();
 
   useEffect(() => {
+    // Supabase's own invite/recovery emails (e.g. the dashboard's "Invite
+    // user" button) always redirect to the project's configured Site URL —
+    // there's no way to point them at /admin/definir-mot-de-passe directly.
+    // Catch that case here at the root and forward the session hash along.
+    const hash = window.location.hash;
+    if (hash.includes("type=invite") || hash.includes("type=recovery")) {
+      navigate(`/admin/definir-mot-de-passe${hash}`, { replace: true });
+      return;
+    }
+
     const t = setTimeout(() => {
       navigate(isAuthenticated ? "/home" : "/connexion", { replace: true });
     }, 900);

@@ -25,6 +25,7 @@ export interface ListingRow {
   owner_id: string;
   owner_name: string;
   owner_phone: string;
+  owner_email: string | null;
   owner_avatar_img: string | null;
   owner_member_since: string;
   modification_message: string | null;
@@ -61,6 +62,7 @@ export function rowToListing(row: ListingRow): Listing {
     ownerId: row.owner_id,
     ownerName: row.owner_name,
     ownerPhone: row.owner_phone,
+    ownerEmail: row.owner_email ?? undefined,
     ownerAvatarImg: row.owner_avatar_img ?? undefined,
     ownerMemberSince: row.owner_member_since,
     modificationMessage: row.modification_message ?? undefined,

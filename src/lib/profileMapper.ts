@@ -1,6 +1,6 @@
 export interface ProfileRow {
   id: string;
-  role: "etudiant" | "proprietaire";
+  role: "etudiant" | "proprietaire" | "admin" | "superadmin";
   first_name: string;
   last_name: string;
   email: string | null;
