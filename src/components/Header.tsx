@@ -48,7 +48,7 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 h-[70px] flex items-center justify-between gap-4">
         <Link to="/home" className="shrink-0">
-          <Logo />
+          <Logo className="h-11 sm:h-12" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-7">
