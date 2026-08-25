@@ -7,10 +7,17 @@ export interface SiteStat {
   label: string;
 }
 
+export interface HeroPhoto {
+  id: string;
+  url: string;
+  position: number;
+}
+
 interface SiteContentContextValue {
   cityPhotos: Record<string, string>;
   featuredListingIds: string[];
   siteStats: SiteStat[];
+  heroPhotos: HeroPhoto[];
   loading: boolean;
   setCityPhoto: (city: string, photoUrl: string) => Promise<void>;
   removeCityPhoto: (city: string) => Promise<void>;
@@ -18,6 +25,9 @@ interface SiteContentContextValue {
   toggleFeatured: (listingId: string) => Promise<void>;
   moveFeatured: (listingId: string, direction: "up" | "down") => Promise<void>;
   updateStat: (key: string, value: string, label: string) => Promise<void>;
+  addHeroPhoto: (photoUrl: string) => Promise<void>;
+  removeHeroPhoto: (id: string) => Promise<void>;
+  moveHeroPhoto: (id: string, direction: "up" | "down") => Promise<void>;
 }
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -26,19 +36,22 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [cityPhotos, setCityPhotos] = useState<Record<string, string>>({});
   const [featured, setFeatured] = useState<{ id: string; listingId: string; position: number }[]>([]);
   const [siteStats, setSiteStats] = useState<SiteStat[]>([]);
+  const [heroPhotos, setHeroPhotos] = useState<HeroPhoto[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [cityRes, featuredRes, statsRes] = await Promise.all([
+    const [cityRes, featuredRes, statsRes, heroRes] = await Promise.all([
       supabase.from("city_photos").select("*"),
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
+      supabase.from("hero_photos").select("*").order("position", { ascending: true }),
     ]);
     const cityMap: Record<string, string> = {};
     for (const row of cityRes.data ?? []) cityMap[row.city] = row.photo_url;
     setCityPhotos(cityMap);
     setFeatured((featuredRes.data ?? []).map((r) => ({ id: r.id, listingId: r.listing_id, position: r.position })));
     setSiteStats((statsRes.data ?? []) as SiteStat[]);
+    setHeroPhotos((heroRes.data ?? []).map((r) => ({ id: r.id, url: r.photo_url, position: r.position })));
     setLoading(false);
   };
 
@@ -50,6 +63,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "city_photos" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "featured_listings" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "site_stats" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "hero_photos" }, fetchAll)
       .subscribe();
 
     return () => {
@@ -98,6 +112,32 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
+  const addHeroPhoto = async (photoUrl: string) => {
+    const nextPosition = heroPhotos.length > 0 ? Math.max(...heroPhotos.map((h) => h.position)) + 1 : 0;
+    const { error } = await supabase.from("hero_photos").insert({ photo_url: photoUrl, position: nextPosition });
+    if (error) throw error;
+    await fetchAll();
+  };
+
+  const removeHeroPhoto = async (id: string) => {
+    await supabase.from("hero_photos").delete().eq("id", id);
+    await fetchAll();
+  };
+
+  const moveHeroPhoto = async (id: string, direction: "up" | "down") => {
+    const sorted = [...heroPhotos].sort((a, b) => a.position - b.position);
+    const index = sorted.findIndex((h) => h.id === id);
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    if (index === -1 || swapWith < 0 || swapWith >= sorted.length) return;
+    const a = sorted[index];
+    const b = sorted[swapWith];
+    await Promise.all([
+      supabase.from("hero_photos").update({ position: b.position }).eq("id", a.id),
+      supabase.from("hero_photos").update({ position: a.position }).eq("id", b.id),
+    ]);
+    await fetchAll();
+  };
+
   const updateStat = async (key: string, value: string, label: string) => {
     const { error } = await supabase
       .from("site_stats")
@@ -111,6 +151,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       cityPhotos,
       featuredListingIds: [...featured].sort((a, b) => a.position - b.position).map((f) => f.listingId),
       siteStats,
+      heroPhotos: [...heroPhotos].sort((a, b) => a.position - b.position),
       loading,
       setCityPhoto,
       removeCityPhoto,
@@ -118,8 +159,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       toggleFeatured,
       moveFeatured,
       updateStat,
+      addHeroPhoto,
+      removeHeroPhoto,
+      moveHeroPhoto,
     }),
-    [cityPhotos, featured, siteStats, loading],
+    [cityPhotos, featured, siteStats, heroPhotos, loading],
   );
 
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;

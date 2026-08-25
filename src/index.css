@@ -25,3 +25,8 @@ body {
 h1, h2, h3, h4, .font-display {
   font-family: var(--font-display);
 }
+
+@keyframes heroFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

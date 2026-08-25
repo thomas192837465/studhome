@@ -565,3 +565,51 @@ alter publication supabase_realtime add table public.activity_logs;
 -- already are — listings.owner_id is a plain text column (not an FK to
 -- profiles), so this avoids a join just to notify the owner by email.
 alter table public.listings add column if not exists owner_email text;
+
+-- ============================================================================
+-- Migration 9: admin-managed, auto-rotating hero photos on the home page.
+-- Now that admin accounts are real (Migration 8), this uses is_admin()-gated
+-- write access instead of the older fully-permissive pattern used by
+-- city_photos/featured_listings — reads stay public since every visitor
+-- sees the hero.
+-- ============================================================================
+
+create table if not exists public.hero_photos (
+  id uuid primary key default gen_random_uuid(),
+  photo_url text not null,
+  position integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.hero_photos enable row level security;
+
+drop policy if exists "hero_photos_read" on public.hero_photos;
+drop policy if exists "hero_photos_admin_insert" on public.hero_photos;
+drop policy if exists "hero_photos_admin_update" on public.hero_photos;
+drop policy if exists "hero_photos_admin_delete" on public.hero_photos;
+
+create policy "hero_photos_read" on public.hero_photos
+  for select using (true);
+create policy "hero_photos_admin_insert" on public.hero_photos
+  for insert with check (public.is_admin());
+create policy "hero_photos_admin_update" on public.hero_photos
+  for update using (public.is_admin());
+create policy "hero_photos_admin_delete" on public.hero_photos
+  for delete using (public.is_admin());
+
+alter publication supabase_realtime add table public.hero_photos;
+
+insert into storage.buckets (id, name, public)
+values ('hero-photos', 'hero-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "hero_photos_bucket_read" on storage.objects;
+drop policy if exists "hero_photos_bucket_write" on storage.objects;
+drop policy if exists "hero_photos_bucket_delete" on storage.objects;
+
+create policy "hero_photos_bucket_read" on storage.objects
+  for select using (bucket_id = 'hero-photos');
+create policy "hero_photos_bucket_write" on storage.objects
+  for insert with check (bucket_id = 'hero-photos' and public.is_admin());
+create policy "hero_photos_bucket_delete" on storage.objects
+  for delete using (bucket_id = 'hero-photos' and public.is_admin());

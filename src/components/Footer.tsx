@@ -46,7 +46,17 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-7xl px-6 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-gray-500">
           <p>2026 StudHome. Tous droits réservés.</p>
-          <p>Made with love.</p>
+          <p>
+            Fait par l'agence{" "}
+            <a
+              href="https://wa.me/33767081391"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-gray-300 hover:text-white transition-colors"
+            >
+              Krea
+            </a>
+          </p>
         </div>
       </div>
     </footer>

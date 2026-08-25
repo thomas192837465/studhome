@@ -1,20 +1,35 @@
 import { useRef, useState } from "react";
-import { Camera, Trash2, ArrowUp, ArrowDown, Star } from "lucide-react";
+import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud } from "lucide-react";
 import { useSiteContent, type SiteStat } from "../../context/SiteContentContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
-import { uploadCityPhoto } from "../../lib/uploadPhoto";
+import { uploadCityPhoto, uploadHeroPhoto } from "../../lib/uploadPhoto";
 import { cameroonCities } from "../../data/cameroonLocations";
 
 const gridCities = cameroonCities.slice(0, 10);
 
 export function AdminSettings() {
-  const { cityPhotos, setCityPhoto, removeCityPhoto, featuredListingIds, isFeatured, toggleFeatured, moveFeatured, siteStats, updateStat } =
-    useSiteContent();
+  const {
+    cityPhotos,
+    setCityPhoto,
+    removeCityPhoto,
+    featuredListingIds,
+    isFeatured,
+    toggleFeatured,
+    moveFeatured,
+    siteStats,
+    updateStat,
+    heroPhotos,
+    addHeroPhoto,
+    removeHeroPhoto,
+    moveHeroPhoto,
+  } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
   const [uploadingCity, setUploadingCity] = useState<string | null>(null);
+  const [uploadingHero, setUploadingHero] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCityPhotoChange = async (city: string, file: File) => {
     setUploadingCity(city);
@@ -27,12 +42,83 @@ export function AdminSettings() {
     }
   };
 
+  const handleHeroPhotoChange = async (file: File) => {
+    setUploadingHero(true);
+    try {
+      const resized = await resizeImageFile(file, 1600, 0.85);
+      const url = await uploadHeroPhoto(resized);
+      await addHeroPhoto(url);
+    } finally {
+      setUploadingHero(false);
+    }
+  };
+
   return (
     <div className="p-6 sm:p-10 space-y-10">
       <div>
         <h1 className="font-display text-2xl font-bold text-brand-navy mb-1">Paramètres</h1>
         <p className="text-sm text-gray-500">Gérez le contenu affiché sur la page d'accueil.</p>
       </div>
+
+      <section>
+        <h2 className="font-semibold text-brand-navy mb-1">Photos du hero</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Photos affichées en grand sur la page d'accueil, en carrousel automatique (défilement toutes les 15
+          secondes). L'ordre ci-dessous détermine l'ordre du carrousel.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          {heroPhotos.map((photo, i) => (
+            <div key={photo.id} className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100">
+              <img src={photo.url} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => moveHeroPhoto(photo.id, "up")}
+                  disabled={i === 0}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-navy disabled:opacity-40"
+                >
+                  <ArrowUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveHeroPhoto(photo.id, "down")}
+                  disabled={i === heroPhotos.length - 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-navy disabled:opacity-40"
+                >
+                  <ArrowDown size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeHeroPhoto(photo.id)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-500"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            disabled={uploadingHero}
+            onClick={() => heroFileInputRef.current?.click()}
+            className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-brand-blue/40 hover:bg-brand-blue-light/30 transition-colors disabled:opacity-60"
+          >
+            <UploadCloud size={20} />
+            <span className="text-xs font-medium">{uploadingHero ? "Envoi..." : "Ajouter une photo"}</span>
+          </button>
+          <input
+            ref={heroFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleHeroPhotoChange(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </section>
 
       <section>
         <h2 className="font-semibold text-brand-navy mb-1">Photos des villes</h2>

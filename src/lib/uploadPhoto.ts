@@ -48,3 +48,15 @@ export async function uploadCityPhoto(dataUrl: string, city: string): Promise<st
   const { data } = supabase.storage.from("city-photos").getPublicUrl(path);
   return data.publicUrl;
 }
+
+export async function uploadHeroPhoto(dataUrl: string): Promise<string> {
+  const blob = dataUrlToBlob(dataUrl);
+  const path = `${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from("hero-photos").upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("hero-photos").getPublicUrl(path);
+  return data.publicUrl;
+}

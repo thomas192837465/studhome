@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -111,14 +111,25 @@ export function Home() {
   const [universite, setUniversite] = useState("");
   const { getPublicListings } = useListings();
   const publicListings = getPublicListings();
-  const { cityPhotos, featuredListingIds, siteStats } = useSiteContent();
+  const { cityPhotos, featuredListingIds, siteStats, heroPhotos } = useSiteContent();
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const carouselListings = useMemo(() => {
     const byId = new Map(publicListings.map((l) => [l.id, l]));
     return featuredListingIds.map((id) => byId.get(id)).filter((l): l is (typeof publicListings)[number] => !!l);
   }, [publicListings, featuredListingIds]);
   const activeCarouselListing = carouselListings[carouselIndex % Math.max(carouselListings.length, 1)];
+
+  const heroImages = heroPhotos.length > 0 ? heroPhotos.map((p) => p.url) : [heroRoom];
+  const activeHeroImage = heroImages[heroIndex % heroImages.length];
+
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const t = setInterval(() => setHeroIndex((i) => (i + 1) % heroImages.length), 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroImages.length]);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -155,7 +166,13 @@ export function Home() {
             </div>
           </div>
           <div className="relative rounded-3xl overflow-hidden aspect-[4/3]">
-            <img src={heroRoom} alt="Chambre étudiante" className="h-full w-full object-cover" />
+            <img
+              key={activeHeroImage}
+              src={activeHeroImage}
+              alt="Chambre étudiante"
+              className="h-full w-full object-cover animate-[heroFade_0.6s_ease-in-out]"
+            />
+            <div className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-r from-white via-white/10 to-transparent" />
             <CameroonFlag className="absolute top-4 right-4 h-8 w-12 rounded-md shadow-lg overflow-hidden" />
           </div>
         </div>
