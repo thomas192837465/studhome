@@ -45,8 +45,9 @@ import { Administrateurs } from "./portals/admin/Administrateurs";
 import { RolesPermissions } from "./portals/admin/RolesPermissions";
 import { LogsActivite } from "./portals/admin/LogsActivite";
 import { Avis } from "./portals/admin/Avis";
+import { AdminSettings } from "./portals/admin/AdminSettings";
 import { AdminPlaceholder } from "./portals/admin/AdminPlaceholder";
-import { Users, GraduationCap, MessageSquare, Settings } from "lucide-react";
+import { Users, GraduationCap, MessageSquare } from "lucide-react";
 
 function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
   return (
@@ -75,10 +76,7 @@ function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
             path={`/${base}/messages`}
             element={<AdminPlaceholder icon={MessageSquare} title="Messages" description="Messagerie interne avec les utilisateurs." />}
           />
-          <Route
-            path={`/${base}/parametres`}
-            element={<AdminPlaceholder icon={Settings} title="Paramètres" description="Configuration générale de la plateforme." />}
-          />
+          <Route path={`/${base}/parametres`} element={<AdminSettings />} />
           {base === "superadmin" && (
             <>
               <Route path="/superadmin/administrateurs" element={<Administrateurs />} />

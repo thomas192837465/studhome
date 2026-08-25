@@ -43,7 +43,7 @@ export function OwnerListings() {
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-brand-navy text-sm truncate">{l.title}</p>
-                <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / mois</p>
+                <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / {l.period}</p>
                 <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${listingStatusClass(l.status)}`}>
                   {l.status}
                 </span>

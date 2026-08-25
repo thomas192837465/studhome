@@ -104,7 +104,7 @@ export function AnnonceVerification() {
             </span>
           </div>
           <p className="text-lg font-bold text-brand-blue">
-            {listing.price.toLocaleString("fr-FR")} FCFA <span className="text-sm font-normal text-gray-500">/ mois</span>
+            {listing.price.toLocaleString("fr-FR")} FCFA <span className="text-sm font-normal text-gray-500">/ {listing.period}</span>
           </p>
           <p className="mt-1 text-sm text-gray-500">
             {listing.city}, {listing.quartier}

@@ -366,17 +366,17 @@ export function PublishWizard() {
             </div>
 
             <label className="block mt-5">
-              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Loyer mensuel *</span>
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Loyer annuel *</span>
               <div className="flex items-center rounded-xl border border-gray-200 px-4 py-3">
                 <input
                   value={draft.loyer}
                   onChange={(e) => updateDraft({ loyer: e.target.value.replace(/\D/g, "") })}
-                  placeholder="17000"
+                  placeholder="200000"
                   className="w-full text-sm focus:outline-none"
                 />
-                <span className="text-sm text-gray-400 shrink-0">FCFA</span>
+                <span className="text-sm text-gray-400 shrink-0">FCFA / an</span>
               </div>
-              <span className="mt-1 block text-xs text-gray-400">Montant que les étudiants verront sur votre annonce.</span>
+              <span className="mt-1 block text-xs text-gray-400">Montant annuel que les étudiants verront sur votre annonce.</span>
             </label>
 
             <div className="mt-4">
@@ -482,7 +482,7 @@ export function PublishWizard() {
                   {draft.type || "Logement"} meublé{draft.quartier ? ` à ${draft.quartier}` : ""}
                 </h3>
                 <p className="mt-1 text-xl font-bold text-brand-blue">
-                  {draft.loyer || "0"} FCFA <span className="text-sm font-normal text-gray-500">/ mois</span>
+                  {draft.loyer || "0"} FCFA <span className="text-sm font-normal text-gray-500">/ an</span>
                 </p>
                 <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
                   <MapPin size={14} /> {draft.ville || "Ville"}, {draft.quartier || "Quartier"}

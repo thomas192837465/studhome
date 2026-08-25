@@ -9,6 +9,7 @@ import { AdminPortalProvider } from './context/AdminPortalContext.tsx'
 import { ListingsProvider } from './context/ListingsContext.tsx'
 import { ReviewsProvider } from './context/ReviewsContext.tsx'
 import { SignalementsProvider } from './context/SignalementsContext.tsx'
+import { SiteContentProvider } from './context/SiteContentContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -16,13 +17,15 @@ createRoot(document.getElementById('root')!).render(
       <ListingsProvider>
         <ReviewsProvider>
           <SignalementsProvider>
-            <AppProvider>
-              <OwnerProvider>
-                <AdminPortalProvider>
-                  <App />
-                </AdminPortalProvider>
-              </OwnerProvider>
-            </AppProvider>
+            <SiteContentProvider>
+              <AppProvider>
+                <OwnerProvider>
+                  <AdminPortalProvider>
+                    <App />
+                  </AdminPortalProvider>
+                </OwnerProvider>
+              </AppProvider>
+            </SiteContentProvider>
           </SignalementsProvider>
         </ReviewsProvider>
       </ListingsProvider>

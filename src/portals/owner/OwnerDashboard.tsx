@@ -69,7 +69,7 @@ export function OwnerDashboard() {
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-brand-navy text-sm truncate">{l.title}</p>
-                <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / mois</p>
+                <p className="text-sm text-gray-500">{l.price.toLocaleString("fr-FR")} FCFA / {l.period}</p>
                 <p className="text-xs text-gray-400">
                   Soumise le {new Date(l.submittedDate).toLocaleDateString("fr-FR")}
                 </p>

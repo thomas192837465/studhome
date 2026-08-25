@@ -92,7 +92,7 @@ export function DemandeModifications() {
             )}
             <div className="text-sm">
               <p className="font-semibold text-brand-navy">{listing.title}</p>
-              <p className="text-gray-500">{listing.price.toLocaleString("fr-FR")} FCFA / mois</p>
+              <p className="text-gray-500">{listing.price.toLocaleString("fr-FR")} FCFA / {listing.period}</p>
               <p className="text-xs text-gray-400 mt-1">
                 Soumise le : {new Date(listing.submittedDate).toLocaleDateString("fr-FR")}
               </p>

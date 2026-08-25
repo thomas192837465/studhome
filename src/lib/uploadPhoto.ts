@@ -24,3 +24,15 @@ export async function uploadListingPhoto(dataUrl: string, listingFolder: string,
 export async function uploadListingPhotos(dataUrls: string[], listingFolder: string): Promise<string[]> {
   return Promise.all(dataUrls.map((url, i) => uploadListingPhoto(url, listingFolder, i)));
 }
+
+export async function uploadCityPhoto(dataUrl: string, city: string): Promise<string> {
+  const blob = dataUrlToBlob(dataUrl);
+  const path = `${city.toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from("city-photos").upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("city-photos").getPublicUrl(path);
+  return data.publicUrl;
+}

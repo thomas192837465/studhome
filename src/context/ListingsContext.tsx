@@ -89,7 +89,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         address: draft.address,
         universities: draft.universities,
         price: Number(draft.loyer) || 0,
-        period: "mois",
+        period: "an",
         description: draft.description,
         equipements: draft.equipements,
         image: galleryUrls[0] ?? "",

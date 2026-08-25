@@ -25,7 +25,14 @@ import heroRoom from "../assets/images/hero-room.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { CameroonFlag } from "../components/CameroonFlag";
 import { useListings } from "../context/ListingsContext";
+import { useSiteContent } from "../context/SiteContentContext";
 import { cameroonUniversities } from "../data/cameroonLocations";
+
+const statIcons: Record<string, typeof faUserGroup> = {
+  users: faUserGroup,
+  schools: faSchool,
+  listings: faFileLines,
+};
 
 const cities = [
   "Yaoundé",
@@ -102,36 +109,13 @@ export function Home() {
   const [universite, setUniversite] = useState("");
   const { getPublicListings } = useListings();
   const publicListings = getPublicListings();
+  const { cityPhotos, featuredListingIds, siteStats } = useSiteContent();
   const [carouselIndex, setCarouselIndex] = useState(0);
 
-  const listingByCity = useMemo(() => {
-    const map = new Map<string, (typeof publicListings)[number]>();
-    for (const l of publicListings) {
-      const key = l.city.toLowerCase();
-      if (!map.has(key)) map.set(key, l);
-    }
-    return map;
-  }, [publicListings]);
-
-  // Up to 10 city slots: cities with a real listing come first, most recently
-  // active first — once 10 are filled, a new city bumps out the one that has
-  // gone longest without a new listing. Remaining slots (if any) fall back to
-  // the default city list as empty placeholders.
-  const displayCities = useMemo(() => {
-    const latestByCity = new Map<string, string>();
-    for (const l of publicListings) {
-      const prev = latestByCity.get(l.city);
-      if (!prev || l.createdAt > prev) latestByCity.set(l.city, l.createdAt);
-    }
-    const activeCities = Array.from(latestByCity.entries())
-      .sort((a, b) => (a[1] < b[1] ? 1 : -1))
-      .map(([city]) => city)
-      .slice(0, 10);
-    const placeholders = cities.filter((c) => !activeCities.includes(c));
-    return [...activeCities, ...placeholders].slice(0, 10);
-  }, [publicListings]);
-
-  const carouselListings = publicListings.slice(0, 8);
+  const carouselListings = useMemo(() => {
+    const byId = new Map(publicListings.map((l) => [l.id, l]));
+    return featuredListingIds.map((id) => byId.get(id)).filter((l): l is (typeof publicListings)[number] => !!l);
+  }, [publicListings, featuredListingIds]);
   const activeCarouselListing = carouselListings[carouselIndex % Math.max(carouselListings.length, 1)];
 
   const handleSearch = () => {
@@ -219,9 +203,9 @@ export function Home() {
       <section className="mt-24 sm:mt-16">
         <div className="mx-auto max-w-5xl px-6">
           <div className="rounded-2xl bg-brand-blue-light px-6 py-5 flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
-            <Stat icon={faUserGroup} value="+1,5 million" label="utilisateurs satisfaits" />
-            <Stat icon={faSchool} value="+180" label="écoles partenaires" />
-            <Stat icon={faFileLines} value="+180 000" label="annonces vérifiées" />
+            {siteStats.map((stat) => (
+              <Stat key={stat.key} icon={statIcons[stat.key] ?? faUserGroup} value={stat.value} label={stat.label} />
+            ))}
           </div>
         </div>
       </section>
@@ -229,31 +213,25 @@ export function Home() {
       {/* Cities */}
       <section className="mx-auto max-w-5xl px-6 mt-16">
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-          {displayCities.map((city) => {
-            const match = listingByCity.get(city.toLowerCase());
+          {cities.map((city) => {
+            const photo = cityPhotos[city];
             return (
               <button
                 key={city}
                 onClick={() => navigate(`/logements?ville=${encodeURIComponent(city)}`)}
                 className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-brand-blue-light to-gray-100 flex items-end p-2 hover:opacity-90 transition-opacity"
               >
-                {match?.image ? (
-                  <img src={match.image} alt={city} className="absolute inset-0 h-full w-full object-cover" />
+                {photo ? (
+                  <img src={photo} alt={city} className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
                   <FontAwesomeIcon
                     icon={faBuilding}
                     className="absolute inset-0 m-auto h-7 w-7 text-brand-blue/30"
                   />
                 )}
-                {match ? (
-                  <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
-                    {city}
-                  </span>
-                ) : (
-                  <span className="relative w-full py-1 text-center text-xs font-medium text-gray-400">
-                    {city}
-                  </span>
-                )}
+                <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
+                  {city}
+                </span>
               </button>
             );
           })}
@@ -314,42 +292,33 @@ export function Home() {
           ) : (
             <div className="h-full w-full flex flex-col items-center justify-center gap-2 text-gray-400">
               <FontAwesomeIcon icon={faBuilding} className="h-10 w-10" />
-              <p className="text-sm">Aucun logement publié pour l'instant</p>
+              <p className="text-sm">Aucun logement mis en avant pour l'instant</p>
             </div>
           )}
           {activeCarouselListing && (
-            <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full bg-brand-blue/90 px-3 py-1 text-xs font-medium text-white">
-              <FontAwesomeIcon icon={faLocationDot} className="h-3 w-3" /> {activeCarouselListing.city}
-            </span>
-          )}
-          {carouselListings.length > 1 && (
-            <>
-              <button
-                onClick={() =>
-                  setCarouselIndex((i) => (i - 1 + carouselListings.length) % carouselListings.length)
-                }
-                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 hover:bg-white transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => setCarouselIndex((i) => (i + 1) % carouselListings.length)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 hover:bg-white transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
-              <div className="absolute bottom-3 right-3 flex gap-1">
-                {carouselListings.map((l, i) => (
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-brand-blue/90 px-4 py-2.5">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-white">
+                <FontAwesomeIcon icon={faLocationDot} className="h-3.5 w-3.5" /> {activeCarouselListing.city}
+              </span>
+              {carouselListings.length > 1 && (
+                <div className="flex items-center gap-2">
                   <button
-                    key={l.id}
-                    onClick={() => setCarouselIndex(i)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === carouselIndex % carouselListings.length ? "w-4 bg-white" : "w-1.5 bg-white/50"
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
+                    onClick={() =>
+                      setCarouselIndex((i) => (i - 1 + carouselListings.length) % carouselListings.length)
+                    }
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCarouselIndex((i) => (i + 1) % carouselListings.length)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
         <Link

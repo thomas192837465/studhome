@@ -16,7 +16,7 @@ export function Listings() {
   const [params, setParams] = useSearchParams();
   const [ville, setVille] = useState(params.get("ville") ?? "");
   const [universite, setUniversite] = useState(params.get("universite") ?? "");
-  const [budgetMax, setBudgetMax] = useState(200000);
+  const [budgetMax, setBudgetMax] = useState(3000000);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
@@ -52,7 +52,7 @@ export function Listings() {
   };
 
   const reset = () => {
-    setBudgetMax(200000);
+    setBudgetMax(3000000);
     setSelectedTypes([]);
     setPage(1);
   };
@@ -99,7 +99,7 @@ export function Listings() {
           <h3 className="font-display font-bold text-lg text-brand-navy">Filters</h3>
           <hr className="my-4 border-gray-100" />
 
-          <h4 className="font-semibold text-sm text-brand-navy mb-3">Budget (FCFA / mois)</h4>
+          <h4 className="font-semibold text-sm text-brand-navy mb-3">Budget (FCFA / an)</h4>
           <div className="flex items-center gap-2 mb-3">
             <input
               type="number"
@@ -118,8 +118,8 @@ export function Listings() {
           <input
             type="range"
             min={0}
-            max={200000}
-            step={1000}
+            max={3000000}
+            step={25000}
             value={budgetMax}
             onChange={(e) => setBudgetMax(Number(e.target.value))}
             className="w-full accent-brand-blue"

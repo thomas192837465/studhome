@@ -371,3 +371,79 @@ $$;
 
 grant execute on function public.unlock_listing(uuid, integer, text) to authenticated;
 grant execute on function public.buy_credits(integer, numeric, text) to authenticated;
+
+-- ============================================================================
+-- Migration 6: admin-managed home page content — city photos, featured
+-- ("à la une") listings for the discover carousel, and the key stats banner.
+-- Admin/superadmin login is a local mock, not a real Supabase Auth identity
+-- (see AdminPortalContext), so — same rationale as listings/reviews/
+-- signalements — these use permissive "_temp" RLS rather than a role check
+-- that has nothing real to check against yet.
+-- ============================================================================
+
+create table if not exists public.city_photos (
+  city text primary key,
+  photo_url text not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.featured_listings (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (listing_id)
+);
+
+create table if not exists public.site_stats (
+  key text primary key,
+  value text not null,
+  label text not null,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.site_stats (key, value, label) values
+  ('users', '+1,5 million', 'utilisateurs satisfaits'),
+  ('schools', '+180', 'écoles partenaires'),
+  ('listings', '+180 000', 'annonces vérifiées')
+on conflict (key) do nothing;
+
+alter table public.city_photos enable row level security;
+alter table public.featured_listings enable row level security;
+alter table public.site_stats enable row level security;
+
+drop policy if exists "city_photos_select_all_temp" on public.city_photos;
+drop policy if exists "city_photos_write_all_temp" on public.city_photos;
+drop policy if exists "city_photos_delete_all_temp" on public.city_photos;
+create policy "city_photos_select_all_temp" on public.city_photos for select using (true);
+create policy "city_photos_write_all_temp" on public.city_photos for all using (true) with check (true);
+
+drop policy if exists "featured_listings_select_all_temp" on public.featured_listings;
+drop policy if exists "featured_listings_write_all_temp" on public.featured_listings;
+create policy "featured_listings_select_all_temp" on public.featured_listings for select using (true);
+create policy "featured_listings_write_all_temp" on public.featured_listings for all using (true) with check (true);
+
+drop policy if exists "site_stats_select_all_temp" on public.site_stats;
+drop policy if exists "site_stats_write_all_temp" on public.site_stats;
+create policy "site_stats_select_all_temp" on public.site_stats for select using (true);
+create policy "site_stats_write_all_temp" on public.site_stats for all using (true) with check (true);
+
+alter publication supabase_realtime add table public.city_photos;
+alter publication supabase_realtime add table public.featured_listings;
+alter publication supabase_realtime add table public.site_stats;
+
+-- Storage bucket for admin-uploaded city photos.
+insert into storage.buckets (id, name, public)
+values ('city-photos', 'city-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "city_photos_bucket_read" on storage.objects;
+drop policy if exists "city_photos_bucket_write_temp" on storage.objects;
+drop policy if exists "city_photos_bucket_delete_temp" on storage.objects;
+
+create policy "city_photos_bucket_read" on storage.objects
+  for select using (bucket_id = 'city-photos');
+create policy "city_photos_bucket_write_temp" on storage.objects
+  for insert with check (bucket_id = 'city-photos');
+create policy "city_photos_bucket_delete_temp" on storage.objects
+  for delete using (bucket_id = 'city-photos');
