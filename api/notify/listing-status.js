@@ -26,60 +26,54 @@ const TEMPLATES = {
   }),
 };
 
+// Brevo wraps this in its own <html>/<head>/<body> shell — sending a full
+// document here (rather than just the body's markup) caused Gmail to drop
+// whole rows (the status badge, the CTA button) instead of just rendering
+// them unstyled, presumably from the resulting nested <body> tags.
 export function renderEmail({ ownerName, body, cta, ctaUrl, status }) {
   const meta = STATUS_META[status];
-  return `<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>StudHome</title>
-</head>
-<body style="margin:0; padding:0; background-color:#f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6; padding: 32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #f0f0f0;">
-          <tr>
-            <td style="padding: 28px 32px 20px; border-bottom: 1px solid #f0f0f0;">
-              <span style="font-size:22px; font-weight:800; letter-spacing:-0.5px;">
-                <span style="color:#faae3f;">Stud</span><span style="color:#26a9e1;">Home</span>
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 28px 32px 8px;">
-              <span style="display:inline-block; padding:6px 14px; border-radius:999px; background-color:${meta.bg}; color:${meta.color}; font-size:12px; font-weight:700;">
-                ${meta.label}
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 12px 32px 8px; color:#111827; font-size:15px; line-height:1.6;">
-              <p style="margin:0 0 12px;">Bonjour ${ownerName || ""},</p>
-              <p style="margin:0;">${body}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 24px 32px 32px;">
-              <a href="${ctaUrl}" style="display:inline-block; background-color:#26a9e1; color:#ffffff; text-decoration:none; font-weight:700; font-size:14px; padding:12px 24px; border-radius:999px;">
-                ${cta} →
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 32px; background-color:#fafafa; border-top:1px solid #f0f0f0;">
-              <p style="margin:0; font-size:12px; color:#9ca3af;">
-                StudHome · Plateforme de référence pour le logement étudiant en Afrique.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <tr>
+    <td align="center" style="padding: 32px 16px;">
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px; border:1px solid #f0f0f0;">
+        <tr>
+          <td style="padding: 28px 32px 20px; border-bottom: 1px solid #f0f0f0;">
+            <span style="font-size:22px; font-weight:800; letter-spacing:-0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <span style="color:#faae3f;">Stud</span><span style="color:#26a9e1;">Home</span>
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 28px 32px 8px;">
+            <span style="display:inline-block; padding:6px 14px; border-radius:999px; background-color:${meta.bg}; color:${meta.color}; font-size:12px; font-weight:700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              ${meta.label}
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 12px 32px 8px; color:#111827; font-size:15px; line-height:1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <p style="margin:0 0 12px;">Bonjour ${ownerName || ""},</p>
+            <p style="margin:0;">${body}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 24px 32px 32px;">
+            <a href="${ctaUrl}" style="display:inline-block; background-color:#26a9e1; color:#ffffff; text-decoration:none; font-weight:700; font-size:14px; padding:12px 24px; border-radius:999px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              ${cta} &rarr;
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 32px; background-color:#fafafa; border-top:1px solid #f0f0f0;">
+            <p style="margin:0; font-size:12px; color:#9ca3af; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              StudHome &middot; Plateforme de r&eacute;f&eacute;rence pour le logement &eacute;tudiant en Afrique.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
 }
 
 export default async function handler(req, res) {
