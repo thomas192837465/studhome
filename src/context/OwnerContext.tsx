@@ -56,11 +56,14 @@ function loadLocalState(): LocalOwnerState {
 interface OwnerContextValue {
   isOwnerAuthenticated: boolean;
   authLoading: boolean;
+  mfaPending: boolean;
   ownerId: string | null;
   ownerUser: OwnerUser;
   draft: ListingDraft;
   sendOtp: (email: string, meta?: { fullName?: string; phone?: string }) => Promise<void>;
   verifyOtp: (email: string, token: string) => Promise<void>;
+  setPassword: (password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateOwnerUser: (patch: Partial<OwnerUser>) => void;
   updateDraft: (patch: Partial<ListingDraft>) => void;
@@ -74,6 +77,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   const [local, setLocal] = useState<LocalOwnerState>(loadLocalState);
   const [authLoading, setAuthLoading] = useState(true);
   const [isOwnerAuthenticated, setIsOwnerAuthenticated] = useState(false);
+  const [mfaPending, setMfaPending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [ownerUser, setOwnerUser] = useState<OwnerUser>(emptyOwnerUser);
   const { submitListing } = useListings();
@@ -91,6 +95,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setAuthUserId(null);
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
+        setMfaPending(false);
         setAuthLoading(false);
         return;
       }
@@ -103,12 +108,23 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setAuthUserId(null);
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
+        setMfaPending(false);
+        setAuthLoading(false);
+        return;
+      }
+      // An owner account can have SMS 2FA enrolled — a fresh sign-in only
+      // reaches AAL1, and full access must wait for the second factor.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!active) return;
+      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        setMfaPending(true);
         setAuthLoading(false);
         return;
       }
       setAuthUserId(session.user.id);
       setOwnerUser(profileToOwnerUser(profile));
       setIsOwnerAuthenticated(true);
+      setMfaPending(false);
       setAuthLoading(false);
     };
 
@@ -154,9 +170,45 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       // decline to grant owner access.
       throw new Error("Cette adresse email est déjà associée à un compte étudiant.");
     }
+    // A signup re-run for an email that already has an account could belong
+    // to one with SMS 2FA already enrolled — route through the same MFA gate
+    // as a normal login rather than granting access unconditionally.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      setMfaPending(true);
+      return;
+    }
     setAuthUserId(authUser.id);
     setOwnerUser(profile ? profileToOwnerUser(profile) : emptyOwnerUser);
     setIsOwnerAuthenticated(true);
+    setMfaPending(false);
+  };
+
+  const setPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  };
+
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error("Email ou mot de passe incorrect.");
+    const authUser = data.user;
+    if (!authUser) throw new Error("Connexion impossible, réessayez.");
+    const profile = await fetchProfile(authUser.id);
+    if (!profile || profile.role !== "proprietaire") {
+      // Same reasoning as verifyOtp: don't sign out, this could be a valid
+      // student session that just tried the wrong login form.
+      throw new Error("Aucun compte propriétaire trouvé avec ces identifiants.");
+    }
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      setMfaPending(true);
+      return;
+    }
+    setAuthUserId(authUser.id);
+    setOwnerUser(profileToOwnerUser(profile));
+    setIsOwnerAuthenticated(true);
+    setMfaPending(false);
   };
 
   const logout = async () => {
@@ -200,18 +252,21 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     () => ({
       isOwnerAuthenticated,
       authLoading,
+      mfaPending,
       ownerId: authUserId,
       ownerUser,
       draft: local.draft,
       sendOtp,
       verifyOtp,
+      setPassword,
+      login,
       logout,
       updateOwnerUser,
       updateDraft,
       resetDraft,
       submitDraft,
     }),
-    [isOwnerAuthenticated, authLoading, ownerUser, local, authUserId],
+    [isOwnerAuthenticated, authLoading, mfaPending, ownerUser, local, authUserId],
   );
 
   return <OwnerContext.Provider value={value}>{children}</OwnerContext.Provider>;

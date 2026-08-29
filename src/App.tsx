@@ -14,6 +14,7 @@ import { TransactionHistory } from "./pages/TransactionHistory";
 import { Profile } from "./pages/Profile";
 import { Parrainage } from "./pages/Parrainage";
 import { AProposPage, ContactPage } from "./pages/Simple";
+import { SetPassword } from "./pages/SetPassword";
 
 import { OwnerLanding } from "./portals/owner/OwnerLanding";
 import { OwnerLogin } from "./portals/owner/OwnerLogin";
@@ -95,6 +96,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Splash />} />
+      <Route path="/definir-mot-de-passe" element={<SetPassword />} />
       <Route element={<Layout />}>
         <Route path="/home" element={<Home />} />
         <Route path="/connexion" element={<Login />} />

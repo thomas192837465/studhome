@@ -4,22 +4,28 @@ import { Lock, MessageSquare, PartyPopper } from "lucide-react";
 import { OwnerPublicHeader } from "./OwnerPublicHeader";
 import { Footer } from "../../components/Footer";
 import { CameroonFlag } from "../../components/CameroonFlag";
+import { MfaChallengeForm } from "../../components/MfaChallengeForm";
 import { useOwner } from "../../context/OwnerContext";
 
 type Step = 1 | 2 | 3;
 
 export function OwnerSignup() {
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp } = useOwner();
+  const { isOwnerAuthenticated, mfaPending, sendOtp, verifyOtp, setPassword } = useOwner();
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPasswordInput] = useState("");
   const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(28);
+
+  useEffect(() => {
+    if (isOwnerAuthenticated) setStep(3);
+  }, [isOwnerAuthenticated]);
 
   useEffect(() => {
     if (step !== 2) return;
@@ -49,7 +55,10 @@ export function OwnerSignup() {
     setVerifying(true);
     try {
       await verifyOtp(email, code.trim());
-      setStep(3);
+      await setPassword(password);
+      // `isOwnerAuthenticated` flipping true (see effect above) advances to
+      // step 3 — unless the account already had 2FA enrolled, in which case
+      // `mfaPending` renders the SMS challenge instead.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Code incorrect ou expiré.");
     } finally {
@@ -129,8 +138,19 @@ export function OwnerSignup() {
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
                 />
               </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Mot de passe</span>
+                <input
+                  value={password}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  type="password"
+                  required
+                  minLength={8}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+              </label>
               <p className="text-xs text-gray-400">
-                Nous vous enverrons un code de vérification par email — aucun mot de passe requis.
+                Nous vous enverrons un code par email pour vérifier votre adresse avant de créer votre compte.
               </p>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button
@@ -150,7 +170,13 @@ export function OwnerSignup() {
           </div>
         )}
 
-        {step === 2 && (
+        {mfaPending && (
+          <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm">
+            <MfaChallengeForm onVerified={() => {}} />
+          </div>
+        )}
+
+        {step === 2 && !mfaPending && (
           <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm text-center">
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-light text-brand-blue">
               <MessageSquare size={24} />

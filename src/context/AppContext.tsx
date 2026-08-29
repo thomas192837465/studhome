@@ -48,6 +48,7 @@ async function fetchProfile(id: string): Promise<ProfileRow | null> {
 interface AppContextValue {
   isAuthenticated: boolean;
   authLoading: boolean;
+  mfaPending: boolean;
   user: User;
   credits: number;
   favorites: string[];
@@ -55,6 +56,8 @@ interface AppContextValue {
   transactions: Transaction[];
   sendOtp: (email: string, meta?: { firstName?: string; lastName?: string }) => Promise<void>;
   verifyOtp: (email: string, token: string) => Promise<void>;
+  setPassword: (password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
   toggleFavorite: (id: string) => void;
@@ -69,6 +72,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mfaPending, setMfaPending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [user, setUser] = useState<User>(emptyUser);
   const [credits, setCredits] = useState(0);
@@ -87,6 +91,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTransactions(((txRes.data ?? []) as TransactionRow[]).map(rowToTransaction));
   };
 
+  const applyAuthenticatedUser = async (userId: string) => {
+    const profile = await fetchProfile(userId);
+    setAuthUserId(userId);
+    setUser(profile ? profileToUser(profile) : emptyUser);
+    setCredits(profile?.credits ?? 0);
+    setIsAuthenticated(true);
+    setMfaPending(false);
+    await fetchAccountData(userId);
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -100,17 +114,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUnlockedListings([]);
         setTransactions([]);
         setIsAuthenticated(false);
+        setMfaPending(false);
         setAuthLoading(false);
         return;
       }
-      const profile = await fetchProfile(session.user.id);
+      // An account can have SMS 2FA enrolled — a fresh sign-in only reaches
+      // AAL1, and full app access must wait until the second factor is
+      // verified (see MfaChallengeForm, rendered by Login.tsx while pending).
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!active) return;
-      setAuthUserId(session.user.id);
-      setUser(profile ? profileToUser(profile) : emptyUser);
-      setCredits(profile?.credits ?? 0);
-      setIsAuthenticated(true);
+      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        setMfaPending(true);
+        setAuthLoading(false);
+        return;
+      }
+      await applyAuthenticatedUser(session.user.id);
+      if (!active) return;
       setAuthLoading(false);
-      await fetchAccountData(session.user.id);
     };
 
     // Deliberately not also calling getSession() here: it can resolve with a
@@ -140,17 +160,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // A signup re-run for an email that already has an account (e.g. a returning
+  // user who mistakenly went through "Créer un compte" again) could belong to
+  // an account with SMS 2FA already enrolled — route through the same MFA
+  // gate as a normal login rather than granting access unconditionally.
+  const finalizeIfNoMfa = async (userId: string) => {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      setMfaPending(true);
+      return;
+    }
+    await applyAuthenticatedUser(userId);
+  };
+
   const verifyOtp = async (email: string, token: string) => {
     const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
     if (error) throw error;
     const authUser = data.user;
     if (!authUser) throw new Error("Vérification impossible, réessayez.");
-    const profile = await fetchProfile(authUser.id);
-    setAuthUserId(authUser.id);
-    setUser(profile ? profileToUser(profile) : emptyUser);
-    setCredits(profile?.credits ?? 0);
-    setIsAuthenticated(true);
-    await fetchAccountData(authUser.id);
+    await finalizeIfNoMfa(authUser.id);
+  };
+
+  const setPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  };
+
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error("Email ou mot de passe incorrect.");
+    if (!data.user) throw new Error("Connexion impossible, réessayez.");
+    await finalizeIfNoMfa(data.user.id);
   };
 
   const logout = async () => {
@@ -220,6 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       isAuthenticated,
       authLoading,
+      mfaPending,
       user,
       credits,
       favorites,
@@ -227,6 +268,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       transactions,
       sendOtp,
       verifyOtp,
+      setPassword,
+      login,
       logout,
       updateUser,
       toggleFavorite,
@@ -235,7 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unlockListing,
       buyPack,
     }),
-    [isAuthenticated, authLoading, user, credits, favorites, unlockedListings, transactions, authUserId],
+    [isAuthenticated, authLoading, mfaPending, user, credits, favorites, unlockedListings, transactions, authUserId],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

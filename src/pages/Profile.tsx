@@ -8,6 +8,7 @@ import { Avatar } from "../components/Avatar";
 import { resizeImageFile } from "../lib/resizeImage";
 import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
 import { Autocomplete } from "../components/Autocomplete";
+import { MfaSecuritySection } from "../components/MfaSecuritySection";
 
 export function Profile() {
   const { isAuthenticated, authLoading, user, credits, updateUser } = useApp();
@@ -138,6 +139,11 @@ export function Profile() {
             )}
           </div>
         </form>
+      </div>
+
+      <hr className="my-10 border-gray-100" />
+      <div className="max-w-lg">
+        <MfaSecuritySection />
       </div>
     </div>
   );

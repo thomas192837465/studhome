@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { supabase } from "../../lib/supabase";
 import { Logo } from "../../components/Logo";
+import { MfaChallengeForm } from "../../components/MfaChallengeForm";
 
 export function AdminLogin() {
   const location = useLocation();
   const isSuper = location.pathname.startsWith("/superadmin");
   const navigate = useNavigate();
-  const { loginWithPassword, logAction } = useAdminPortal();
+  const { session, mfaPending, loginWithPassword, logAction } = useAdminPortal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -18,14 +19,23 @@ export function AdminLogin() {
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
+  // Wait for `session` itself (not just the loginWithPassword call resolving)
+  // before navigating/logging — with 2FA enrolled, loginWithPassword returns
+  // without throwing once it flips `mfaPending`, and `session` only becomes
+  // non-null after the SMS challenge is verified.
+  useEffect(() => {
+    if (!session) return;
+    logAction("Connexion", email || session.email);
+    navigate(isSuper ? "/superadmin/tableau-de-bord" : "/admin/tableau-de-bord", { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
     try {
       await loginWithPassword(email, password);
-      await logAction("Connexion", email);
-      navigate(isSuper ? "/superadmin/tableau-de-bord" : "/admin/tableau-de-bord");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connexion impossible. Réessayez.");
     } finally {
@@ -71,6 +81,11 @@ export function AdminLogin() {
           </p>
         </div>
 
+        {mfaPending ? (
+          <div className="bg-white p-8 sm:p-10 flex items-center justify-center">
+            <MfaChallengeForm onVerified={() => {}} />
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="bg-white p-8 sm:p-10 flex flex-col justify-center space-y-4">
           <h3 className="font-display text-lg font-bold text-brand-navy">
             {isSuper ? "Espace Administration" : "Bienvenue"}
@@ -136,6 +151,7 @@ export function AdminLogin() {
           </button>
           <p className="text-center text-xs text-gray-400">StudHome © 2024 · Tous droits réservés</p>
         </form>
+        )}
       </div>
     </div>
   );

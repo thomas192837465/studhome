@@ -5,6 +5,7 @@ import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
 import { uploadCityPhoto, uploadHeroPhoto } from "../../lib/uploadPhoto";
 import { cameroonCities } from "../../data/cameroonLocations";
+import { MfaSecuritySection } from "../../components/MfaSecuritySection";
 
 const gridCities = cameroonCities.slice(0, 10);
 
@@ -59,6 +60,12 @@ export function AdminSettings() {
         <h1 className="font-display text-2xl font-bold text-brand-navy mb-1">Paramètres</h1>
         <p className="text-sm text-gray-500">Gérez le contenu affiché sur la page d'accueil.</p>
       </div>
+
+      <section className="max-w-lg">
+        <h2 className="font-semibold text-brand-navy mb-1">Mon compte</h2>
+        <p className="text-sm text-gray-500 mb-4">Sécurisez votre propre accès administrateur.</p>
+        <MfaSecuritySection />
+      </section>
 
       <section>
         <h2 className="font-semibold text-brand-navy mb-1">Photos du hero</h2>

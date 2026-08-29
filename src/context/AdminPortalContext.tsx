@@ -31,6 +31,7 @@ interface AdminPortalContextValue {
   session: AdminSession | null;
   authLoading: boolean;
   authError: string;
+  mfaPending: boolean;
   transactions: typeof seedTransactions;
   logs: ActivityLog[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
@@ -44,6 +45,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AdminSession | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [mfaPending, setMfaPending] = useState(false);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       if (!authSession?.user) {
         if (!active) return;
         setSession(null);
+        setMfaPending(false);
         setAuthLoading(false);
         return;
       }
@@ -61,7 +64,24 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       // A session can belong to a student/owner account browsing while an
       // admin portal tab is also open — only treat it as admin-authenticated
       // when the profile was actually created with an admin/superadmin role.
-      setSession(profile ? profileToSession(profile) : null);
+      const nextSession = profile ? profileToSession(profile) : null;
+      if (!nextSession) {
+        setSession(null);
+        setMfaPending(false);
+        setAuthLoading(false);
+        return;
+      }
+      // Admin accounts can have SMS 2FA enrolled — a fresh sign-in only
+      // reaches AAL1, and admin access must wait for the second factor.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!active) return;
+      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        setMfaPending(true);
+        setAuthLoading(false);
+        return;
+      }
+      setSession(nextSession);
+      setMfaPending(false);
       setAuthLoading(false);
     };
 
@@ -128,7 +148,13 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       throw new Error("Ce compte n'a pas accès à l'espace administrateur.");
     }
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      setMfaPending(true);
+      return;
+    }
     setSession(nextSession);
+    setMfaPending(false);
   };
 
   const logout = async () => {
@@ -161,13 +187,14 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       session,
       authLoading,
       authError,
+      mfaPending,
       transactions: seedTransactions,
       logs,
       loginWithPassword,
       logout,
       logAction,
     }),
-    [session, authLoading, authError, logs],
+    [session, authLoading, authError, mfaPending, logs],
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

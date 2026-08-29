@@ -6,6 +6,7 @@ import { useOwner } from "../../context/OwnerContext";
 import { CameroonFlag } from "../../components/CameroonFlag";
 import { Avatar } from "../../components/Avatar";
 import { resizeImageFile } from "../../lib/resizeImage";
+import { MfaSecuritySection } from "../../components/MfaSecuritySection";
 
 export function OwnerProfile() {
   const { ownerUser, authLoading, updateOwnerUser } = useOwner();
@@ -92,6 +93,9 @@ export function OwnerProfile() {
           </p>
         )}
       </form>
+
+      <hr className="my-8 border-gray-100" />
+      <MfaSecuritySection />
     </div>
   );
 }

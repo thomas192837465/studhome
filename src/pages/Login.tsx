@@ -6,7 +6,9 @@ import { faHouse } from "@fortawesome/free-solid-svg-icons";
 import loginBedroom from "../assets/images/login-bedroom.jpg";
 import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { Logo } from "../components/Logo";
+import { MfaChallengeForm } from "../components/MfaChallengeForm";
 import { useApp } from "../context/AppContext";
+import { supabase } from "../lib/supabase";
 
 type Tab = "connexion" | "inscription";
 type Step = "form" | "code";
@@ -20,13 +22,20 @@ export function Login() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPasswordInput] = useState("");
   const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(30);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp } = useApp();
+  const { isAuthenticated, mfaPending, sendOtp, verifyOtp, setPassword, login } = useApp();
+
+  useEffect(() => {
+    if (isAuthenticated) navigate(tab === "inscription" ? "/profil" : "/home", { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (step !== "code" || seconds <= 0) return;
@@ -47,7 +56,7 @@ export function Login() {
     setError("");
     setSending(true);
     try {
-      await sendOtp(email, tab === "inscription" ? { firstName, lastName } : undefined);
+      await sendOtp(email, { firstName, lastName });
       setStep("code");
       setSeconds(30);
     } catch {
@@ -63,7 +72,7 @@ export function Login() {
     setVerifying(true);
     try {
       await verifyOtp(email, code.trim());
-      navigate(tab === "inscription" ? "/profil" : "/home");
+      await setPassword(password);
     } catch {
       setError("Code incorrect ou expiré. Réessayez ou renvoyez un nouveau code.");
     } finally {
@@ -74,10 +83,39 @@ export function Login() {
   const handleResend = async () => {
     setError("");
     try {
-      await sendOtp(email, tab === "inscription" ? { firstName, lastName } : undefined);
+      await sendOtp(email, { firstName, lastName });
       setSeconds(30);
     } catch {
       setError("Impossible de renvoyer le code pour le moment.");
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setVerifying(true);
+    try {
+      await login(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connexion impossible.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Renseignez votre email puis cliquez sur « Mot de passe oublié ? ».");
+      return;
+    }
+    setError("");
+    try {
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/definir-mot-de-passe`,
+      });
+      setResetSent(true);
+    } catch {
+      setError("Impossible d'envoyer l'email de réinitialisation.");
     }
   };
 
@@ -96,66 +134,104 @@ export function Login() {
           Connectez-vous ou créez un compte pour trouver votre logement en toute confiance.
         </p>
 
-        {step === "form" && (
-          <div className="mt-8 grid grid-cols-2 rounded-xl bg-gray-100 p-1 max-w-sm">
-            <button
-              onClick={() => switchTab("connexion")}
-              className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-                tab === "connexion" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
-              }`}
-            >
-              Se connecter
-            </button>
-            <button
-              onClick={() => switchTab("inscription")}
-              className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-                tab === "inscription" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
-              }`}
-            >
-              Créer un compte
-            </button>
+        {mfaPending ? (
+          <div className="mt-8">
+            <MfaChallengeForm onVerified={() => {}} />
           </div>
-        )}
+        ) : (
+          <>
+            {step === "form" && (
+              <div className="mt-8 grid grid-cols-2 rounded-xl bg-gray-100 p-1 max-w-sm">
+                <button
+                  onClick={() => switchTab("connexion")}
+                  className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                    tab === "connexion" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Se connecter
+                </button>
+                <button
+                  onClick={() => switchTab("inscription")}
+                  className={`rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                    tab === "inscription" ? "bg-white text-brand-navy shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Créer un compte
+                </button>
+              </div>
+            )}
 
-        {step === "form" && tab === "inscription" && accountType === null ? (
-          <div className="mt-6 max-w-sm space-y-3">
-            <button
-              type="button"
-              onClick={() => setAccountType("etudiant")}
-              className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-blue hover:bg-brand-blue-light transition-colors"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue-light text-brand-blue">
-                <GraduationCap size={22} />
-              </span>
-              <span>
-                <span className="block font-semibold text-brand-navy">Créer un compte étudiant</span>
-                <span className="block text-sm text-gray-500">Recherchez et contactez des propriétaires.</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/proprietaire/inscription")}
-              className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-orange hover:bg-brand-orange-light transition-colors"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange-light text-brand-orange">
-                <Building2 size={22} />
-              </span>
-              <span>
-                <span className="block font-semibold text-brand-navy">Créer un compte propriétaire</span>
-                <span className="block text-sm text-gray-500">Publiez vos logements gratuitement.</span>
-              </span>
-            </button>
-            <p className="text-center text-sm text-gray-500 pt-2">
-              Déjà un compte ?{" "}
-              <button type="button" onClick={() => switchTab("connexion")} className="font-semibold text-brand-blue">
-                Se connecter
-              </button>
-            </p>
-          </div>
-        ) : step === "form" ? (
-          <form onSubmit={handleSendCode} className="mt-6 max-w-sm space-y-4">
-            {tab === "inscription" && (
-              <>
+            {tab === "connexion" && step === "form" && (
+              <form onSubmit={handleLogin} className="mt-6 max-w-sm space-y-4">
+                <Field label="Email" type="email" value={email} onChange={setEmail} />
+                <Field label="Mot de passe" type="password" value={password} onChange={setPasswordInput} />
+                <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-brand-blue -mt-2">
+                  Mot de passe oublié ?
+                </button>
+
+                {resetSent && (
+                  <p className="text-sm text-brand-green">
+                    Email de réinitialisation envoyé, vérifiez votre boîte de réception.
+                  </p>
+                )}
+                {error && <p className="text-sm text-red-500">{error}</p>}
+
+                <button
+                  type="submit"
+                  disabled={verifying}
+                  className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+                >
+                  {verifying ? "Connexion..." : "Se connecter"}
+                </button>
+
+                <p className="text-center text-sm text-gray-500">
+                  Pas encore de compte ?{" "}
+                  <button type="button" onClick={() => switchTab("inscription")} className="font-semibold text-brand-blue">
+                    Créer un compte
+                  </button>
+                </p>
+              </form>
+            )}
+
+            {tab === "inscription" && step === "form" && accountType === null && (
+              <div className="mt-6 max-w-sm space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setAccountType("etudiant")}
+                  className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-blue hover:bg-brand-blue-light transition-colors"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue-light text-brand-blue">
+                    <GraduationCap size={22} />
+                  </span>
+                  <span>
+                    <span className="block font-semibold text-brand-navy">Créer un compte étudiant</span>
+                    <span className="block text-sm text-gray-500">Recherchez et contactez des propriétaires.</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/proprietaire/inscription")}
+                  className="flex w-full items-center gap-4 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-orange hover:bg-brand-orange-light transition-colors"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange-light text-brand-orange">
+                    <Building2 size={22} />
+                  </span>
+                  <span>
+                    <span className="block font-semibold text-brand-navy">Créer un compte propriétaire</span>
+                    <span className="block text-sm text-gray-500">Publiez vos logements gratuitement.</span>
+                  </span>
+                </button>
+                <p className="text-center text-sm text-gray-500 pt-2">
+                  Déjà un compte ?{" "}
+                  <button type="button" onClick={() => switchTab("connexion")} className="font-semibold text-brand-blue">
+                    Se connecter
+                  </button>
+                </p>
+              </div>
+            )}
+
+            {tab === "inscription" && step === "form" && accountType === "etudiant" && (
+              <form onSubmit={handleSendCode} className="mt-6 max-w-sm space-y-4">
                 <button
                   type="button"
                   onClick={() => setAccountType(null)}
@@ -165,82 +241,74 @@ export function Login() {
                 </button>
                 <Field label="Prénom" value={firstName} onChange={setFirstName} />
                 <Field label="Nom" value={lastName} onChange={setLastName} />
-              </>
-            )}
-            <Field label="Email" type="email" value={email} onChange={setEmail} />
-            <p className="text-xs text-gray-400">
-              Nous vous enverrons un code de vérification par email — aucun mot de passe requis.
-            </p>
+                <Field label="Email" type="email" value={email} onChange={setEmail} />
+                <Field label="Mot de passe" type="password" value={password} onChange={setPasswordInput} minLength={8} />
+                <p className="text-xs text-gray-400">
+                  Nous vous enverrons un code par email pour vérifier votre adresse avant de créer votre compte.
+                </p>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-sm text-red-500">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={sending}
-              className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
-            >
-              {sending ? "Envoi en cours..." : "Recevoir le code par email"}
-            </button>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+                >
+                  {sending ? "Envoi en cours..." : "Recevoir le code par email"}
+                </button>
 
-            <p className="text-center text-sm text-gray-500">
-              {tab === "connexion" ? (
-                <>
-                  Pas encore de compte ?{" "}
-                  <button type="button" onClick={() => switchTab("inscription")} className="font-semibold text-brand-blue">
-                    Créer un compte
-                  </button>
-                </>
-              ) : (
-                <>
+                <p className="text-center text-sm text-gray-500">
                   Déjà un compte ?{" "}
                   <button type="button" onClick={() => switchTab("connexion")} className="font-semibold text-brand-blue">
                     Se connecter
                   </button>
-                </>
-              )}
-            </p>
-          </form>
-        ) : (
-          <form onSubmit={handleVerify} className="mt-6 max-w-sm">
-            <p className="text-sm text-gray-500">
-              Entrez le code envoyé à <span className="font-semibold text-brand-navy">{email}</span>
-            </p>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
-              inputMode="numeric"
-              autoFocus
-              placeholder="Code de vérification"
-              className="mt-5 w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-            />
+                </p>
+              </form>
+            )}
 
-            {error && <p className="mt-3 text-sm text-red-500 text-center">{error}</p>}
+            {step === "code" && (
+              <form onSubmit={handleVerify} className="mt-6 max-w-sm">
+                <p className="text-sm text-gray-500">
+                  Entrez le code envoyé à <span className="font-semibold text-brand-navy">{email}</span>
+                </p>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  inputMode="numeric"
+                  autoFocus
+                  placeholder="Code de vérification"
+                  className="mt-5 w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
 
-            <p className="mt-4 text-center text-xs text-gray-400">
-              {seconds > 0 ? (
-                `Renvoyer le code dans ${seconds}s`
-              ) : (
-                <button type="button" onClick={handleResend} className="font-semibold text-brand-blue">
-                  Renvoyer le code
+                {error && <p className="mt-3 text-sm text-red-500 text-center">{error}</p>}
+
+                <p className="mt-4 text-center text-xs text-gray-400">
+                  {seconds > 0 ? (
+                    `Renvoyer le code dans ${seconds}s`
+                  ) : (
+                    <button type="button" onClick={handleResend} className="font-semibold text-brand-blue">
+                      Renvoyer le code
+                    </button>
+                  )}
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={verifying || !code}
+                  className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+                >
+                  {verifying ? "Vérification..." : "Vérifier et continuer"}
                 </button>
-              )}
-            </p>
-
-            <button
-              type="submit"
-              disabled={verifying || !code}
-              className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
-            >
-              {verifying ? "Vérification..." : "Vérifier et continuer"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep("form")}
-              className="mt-3 w-full text-center text-sm text-gray-400"
-            >
-              Changer d'adresse email
-            </button>
-          </form>
+                <button
+                  type="button"
+                  onClick={() => setStep("form")}
+                  className="mt-3 w-full text-center text-sm text-gray-400"
+                >
+                  Changer d'adresse email
+                </button>
+              </form>
+            )}
+          </>
         )}
       </div>
 
@@ -287,11 +355,13 @@ function Field({
   type = "text",
   value,
   onChange,
+  minLength,
 }: {
   label: string;
   type?: string;
   value: string;
   onChange: (v: string) => void;
+  minLength?: number;
 }) {
   return (
     <label className="block">
@@ -301,6 +371,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required
+        minLength={minLength}
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
       />
     </label>
