@@ -7,12 +7,13 @@ import { CameroonFlag } from "../../components/CameroonFlag";
 import { MfaChallengeForm } from "../../components/MfaChallengeForm";
 import { MfaEnrollForm } from "../../components/MfaEnrollForm";
 import { useOwner } from "../../context/OwnerContext";
+import type { TwoFactorMethod } from "../../lib/twoFactor";
 
 type Step = 1 | 2 | 3;
 
 export function OwnerSignup() {
   const navigate = useNavigate();
-  const { mfaPending, mfaPhone, signup, completeMfaChallenge } = useOwner();
+  const { mfaPending, mfaMethod, mfaIdentifier, signup, completeMfaChallenge } = useOwner();
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,15 +22,23 @@ export function OwnerSignup() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  const handleStep1 = async (e: React.FormEvent) => {
+  const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setStep(2);
+  };
+
+  // Only creates the account once the SMS/email code has been verified — an
+  // abandoned signup never leaves a real (2FA-less) account behind.
+  const handleAccountCreation = async (method: TwoFactorMethod, identifier: string) => {
     setError("");
     setSending(true);
     try {
-      await signup(email, password, { fullName, phone });
-      setStep(2);
+      await signup(email, password, { fullName }, { method, identifier });
+      setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de créer le compte.");
+      setStep(1);
     } finally {
       setSending(false);
     }
@@ -52,9 +61,9 @@ export function OwnerSignup() {
           ))}
         </div>
 
-        {mfaPending ? (
+        {mfaPending && mfaMethod ? (
           <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm">
-            <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
+            <MfaChallengeForm method={mfaMethod} identifier={mfaIdentifier} onVerified={completeMfaChallenge} />
           </div>
         ) : step === 1 ? (
           <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm">
@@ -113,15 +122,14 @@ export function OwnerSignup() {
                 />
               </label>
               <p className="text-xs text-gray-400">
-                À l'étape suivante, vous sécuriserez votre connexion avec un code envoyé par SMS.
+                Un code de vérification (SMS ou email, au choix) vous sera envoyé avant la création du compte.
               </p>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button
                 type="submit"
-                disabled={sending}
                 className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
               >
-                {sending ? "Création du compte..." : "Continuer"}
+                Continuer
               </button>
               <p className="text-center text-sm text-gray-500">
                 Déjà un compte ?{" "}
@@ -137,7 +145,9 @@ export function OwnerSignup() {
               Sécurisez votre compte
             </h2>
             <p className="mb-5 text-center text-sm text-gray-500">Étape 2 sur 2</p>
-            <MfaEnrollForm onEnrolled={() => setStep(3)} />
+            <MfaEnrollForm email={email} initialPhone={phone} onVerified={handleAccountCreation} />
+            {sending && <p className="mt-3 text-center text-sm text-gray-500">Création du compte...</p>}
+            {error && <p className="mt-3 text-center text-sm text-red-500">{error}</p>}
           </div>
         ) : (
           <div className="rounded-3xl border border-gray-100 p-10 shadow-sm text-center">

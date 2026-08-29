@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
-import { sendVerificationCode, checkVerificationCode } from "../lib/phoneVerification";
+import { sendVerificationCode, checkVerificationCode, type TwoFactorMethod } from "../lib/twoFactor";
 
-// Shown right after a first-factor login (password) when the account has SMS
-// 2FA enrolled. The caller (Login.tsx / OwnerLogin.tsx / AdminLogin.tsx)
-// knows the phone number from the profile it already fetched, and is
-// responsible for marking the session as fully authenticated once
-// onVerified() fires.
-export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerified: () => void }) {
+// Shown right after a first-factor login (password) when the account has
+// SMS or email 2FA enrolled. The caller (Login.tsx / OwnerLogin.tsx /
+// AdminLogin.tsx) knows the method + identifier from the profile it already
+// fetched, and is responsible for marking the session as fully
+// authenticated once onVerified() fires.
+export function MfaChallengeForm({
+  method,
+  identifier,
+  onVerified,
+}: {
+  method: TwoFactorMethod;
+  identifier: string;
+  onVerified: () => void;
+}) {
   const [code, setCode] = useState("");
   const [preparing, setPreparing] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -19,7 +27,7 @@ export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerif
     setPreparing(true);
     setSent(false);
     try {
-      await sendVerificationCode(phone);
+      await sendVerificationCode(method, identifier);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'envoyer le code.");
@@ -31,14 +39,14 @@ export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerif
   useEffect(() => {
     startChallenge();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [method, identifier]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setVerifying(true);
     try {
-      const ok = await checkVerificationCode(phone, code.trim());
+      const ok = await checkVerificationCode(method, identifier, code.trim());
       if (!ok) {
         setError("Code incorrect ou expiré.");
         return;
@@ -51,6 +59,8 @@ export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerif
     }
   };
 
+  const channelLabel = method === "email" ? "par email" : "par SMS";
+
   return (
     <div className="mx-auto max-w-sm text-center">
       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-light text-brand-blue">
@@ -61,7 +71,7 @@ export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerif
         {preparing
           ? "Envoi du code en cours..."
           : sent
-            ? "Entrez le code envoyé par SMS au numéro enregistré sur votre compte."
+            ? `Entrez le code envoyé ${channelLabel} au compte enregistré.`
             : "Impossible d'envoyer le code."}
       </p>
 

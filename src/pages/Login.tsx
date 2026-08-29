@@ -10,9 +10,10 @@ import { MfaChallengeForm } from "../components/MfaChallengeForm";
 import { MfaEnrollForm } from "../components/MfaEnrollForm";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../lib/supabase";
+import type { TwoFactorMethod } from "../lib/twoFactor";
 
 type Tab = "connexion" | "inscription";
-type Step = "form" | "phone";
+type Step = "form" | "code";
 
 export function Login() {
   const [params] = useSearchParams();
@@ -29,11 +30,11 @@ export function Login() {
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, mfaPending, mfaPhone, signup, login, completeMfaChallenge } = useApp();
+  const { isAuthenticated, mfaPending, mfaMethod, mfaIdentifier, signup, login, completeMfaChallenge } = useApp();
 
-  // Guarded to the "connexion" tab only: signing up flips isAuthenticated
-  // true right away (a brand-new account has no MFA factor yet), but the
-  // signup flow still has a mandatory phone-2FA step to complete first.
+  // Guarded to the "connexion" tab only: navigating away on signup happens
+  // explicitly once the account is actually created (see
+  // handleAccountCreation) — isAuthenticated shouldn't drive it there.
   useEffect(() => {
     if (tab === "connexion" && isAuthenticated) navigate("/home", { replace: true });
   }, [isAuthenticated, tab, navigate]);
@@ -45,15 +46,23 @@ export function Login() {
     setError("");
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleContinueToVerification = (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setStep("code");
+  };
+
+  // Only creates the account once the SMS/email code has been verified — an
+  // abandoned signup never leaves a real (2FA-less) account behind.
+  const handleAccountCreation = async (method: TwoFactorMethod, identifier: string) => {
     setError("");
     setSigningUp(true);
     try {
-      await signup(email, password, { firstName, lastName });
-      setStep("phone");
+      await signup(email, password, { firstName, lastName }, { method, identifier });
+      navigate("/profil", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de créer le compte.");
+      setStep("form");
     } finally {
       setSigningUp(false);
     }
@@ -103,16 +112,16 @@ export function Login() {
           Connectez-vous ou créez un compte pour trouver votre logement en toute confiance.
         </p>
 
-        {mfaPending ? (
+        {mfaPending && mfaMethod ? (
           <div className="mt-8">
-            <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
+            <MfaChallengeForm method={mfaMethod} identifier={mfaIdentifier} onVerified={completeMfaChallenge} />
           </div>
-        ) : step === "phone" ? (
+        ) : step === "code" ? (
           <div className="mt-8 max-w-sm">
-            <p className="mb-4 text-sm text-gray-500">
-              Dernière étape : sécurisez votre compte avec un code envoyé par SMS.
-            </p>
-            <MfaEnrollForm onEnrolled={() => navigate("/profil", { replace: true })} />
+            <p className="mb-4 text-sm text-gray-500">Dernière étape avant de créer votre compte.</p>
+            <MfaEnrollForm email={email} onVerified={handleAccountCreation} />
+            {signingUp && <p className="mt-3 text-center text-sm text-gray-500">Création du compte...</p>}
+            {error && <p className="mt-3 text-center text-sm text-red-500">{error}</p>}
           </div>
         ) : (
           <>
@@ -205,7 +214,7 @@ export function Login() {
             )}
 
             {tab === "inscription" && accountType === "etudiant" && (
-              <form onSubmit={handleSignup} className="mt-6 max-w-sm space-y-4">
+              <form onSubmit={handleContinueToVerification} className="mt-6 max-w-sm space-y-4">
                 <button
                   type="button"
                   onClick={() => setAccountType(null)}
@@ -218,17 +227,16 @@ export function Login() {
                 <Field label="Email" type="email" value={email} onChange={setEmail} />
                 <Field label="Mot de passe" type="password" value={password} onChange={setPasswordInput} minLength={8} />
                 <p className="text-xs text-gray-400">
-                  Après création du compte, vous sécuriserez votre connexion avec un code envoyé par SMS.
+                  Un code de vérification (SMS ou email, au choix) vous sera envoyé avant la création du compte.
                 </p>
 
                 {error && <p className="text-sm text-red-500">{error}</p>}
 
                 <button
                   type="submit"
-                  disabled={signingUp}
                   className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
                 >
-                  {signingUp ? "Création du compte..." : "Créer mon compte"}
+                  Continuer
                 </button>
 
                 <p className="text-center text-sm text-gray-500">
@@ -287,12 +295,14 @@ function Field({
   value,
   onChange,
   minLength,
+  placeholder,
 }: {
   label: string;
   type?: string;
   value: string;
   onChange: (v: string) => void;
   minLength?: number;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -303,6 +313,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         required
         minLength={minLength}
+        placeholder={placeholder}
         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
       />
     </label>

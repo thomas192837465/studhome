@@ -6,6 +6,7 @@ export interface ProfileRow {
   email: string | null;
   phone: string;
   phone_verified: boolean;
+  two_factor_method: "sms" | "email" | null;
   city: string;
   university: string;
   bio: string;

@@ -10,7 +10,7 @@ import { supabase } from "../../lib/supabase";
 
 export function OwnerLogin() {
   const navigate = useNavigate();
-  const { isOwnerAuthenticated, mfaPending, mfaPhone, login, completeMfaChallenge } = useOwner();
+  const { isOwnerAuthenticated, mfaPending, mfaMethod, mfaIdentifier, login, completeMfaChallenge } = useOwner();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -63,9 +63,9 @@ export function OwnerLogin() {
             <p className="mt-2 text-sm text-gray-500">Connectez-vous pour publier votre logement.</p>
           </div>
 
-          {mfaPending ? (
+          {mfaPending && mfaMethod ? (
             <div className="p-8 sm:p-10 flex items-center">
-              <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
+              <MfaChallengeForm method={mfaMethod} identifier={mfaIdentifier} onVerified={completeMfaChallenge} />
             </div>
           ) : (
             <form onSubmit={handleLogin} className="p-8 sm:p-10 space-y-5">

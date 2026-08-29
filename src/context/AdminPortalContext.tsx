@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
 import type { AdminSession, ActivityLog, PortalRole } from "../data/adminTypes";
 import { seedTransactions } from "../data/adminSeed";
-import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
+import { isTwoFactorVerifiedForSession, markTwoFactorVerifiedForSession, type TwoFactorMethod } from "../lib/twoFactor";
 
 function roleToPortalRole(role: string): PortalRole | null {
   if (role === "admin") return "Admin";
@@ -33,7 +33,8 @@ interface AdminPortalContextValue {
   authLoading: boolean;
   authError: string;
   mfaPending: boolean;
-  mfaPhone: string;
+  mfaMethod: TwoFactorMethod | null;
+  mfaIdentifier: string;
   transactions: typeof seedTransactions;
   logs: ActivityLog[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
@@ -49,24 +50,27 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [mfaPending, setMfaPending] = useState(false);
-  const [mfaPhone, setMfaPhone] = useState("");
+  const [mfaMethod, setMfaMethod] = useState<TwoFactorMethod | null>(null);
+  const [mfaIdentifier, setMfaIdentifier] = useState("");
   const [pendingProfile, setPendingProfile] = useState<{ userId: string; session: AdminSession } | null>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   // Decides, from an already-resolved admin/superadmin session, whether the
-  // custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed for this
-  // browser session before granting admin access.
+  // custom 2FA challenge (SMS or email, via our own endpoints) is still owed
+  // for this browser session before granting admin access.
   const finalizeAuth = (userId: string, profile: ProfileRow, nextSession: AdminSession) => {
-    if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {
+    if (profile.two_factor_method && !isTwoFactorVerifiedForSession(userId)) {
       setPendingProfile({ userId, session: nextSession });
-      setMfaPhone(profile.phone);
+      setMfaMethod(profile.two_factor_method);
+      setMfaIdentifier(profile.two_factor_method === "email" ? profile.email ?? "" : profile.phone);
       setMfaPending(true);
       return;
     }
     setSession(nextSession);
     setMfaPending(false);
     setPendingProfile(null);
-    setMfaPhone("");
+    setMfaMethod(null);
+    setMfaIdentifier("");
   };
 
   useEffect(() => {
@@ -77,7 +81,8 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         setSession(null);
         setMfaPending(false);
-        setMfaPhone("");
+        setMfaMethod(null);
+        setMfaIdentifier("");
         setPendingProfile(null);
         setAuthLoading(false);
         return;
@@ -91,7 +96,8 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       if (!nextSession || !profile) {
         setSession(null);
         setMfaPending(false);
-        setMfaPhone("");
+        setMfaMethod(null);
+        setMfaIdentifier("");
         setPendingProfile(null);
         setAuthLoading(false);
         return;
@@ -168,10 +174,11 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
 
   const completeMfaChallenge = async () => {
     if (!pendingProfile) return;
-    markPhoneVerifiedForSession(pendingProfile.userId);
+    markTwoFactorVerifiedForSession(pendingProfile.userId);
     setSession(pendingProfile.session);
     setMfaPending(false);
-    setMfaPhone("");
+    setMfaMethod(null);
+    setMfaIdentifier("");
     setPendingProfile(null);
   };
 
@@ -206,7 +213,8 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       authLoading,
       authError,
       mfaPending,
-      mfaPhone,
+      mfaMethod,
+      mfaIdentifier,
       transactions: seedTransactions,
       logs,
       loginWithPassword,
@@ -214,7 +222,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       logout,
       logAction,
     }),
-    [session, authLoading, authError, mfaPending, mfaPhone, logs, pendingProfile],
+    [session, authLoading, authError, mfaPending, mfaMethod, mfaIdentifier, logs, pendingProfile],
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

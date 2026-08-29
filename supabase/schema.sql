@@ -641,3 +641,30 @@ alter table public.phone_verifications enable row level security;
 -- No policies defined on purpose: only the service-role key (used by
 -- api/twilio/*.js) can read or write this table; anon/authenticated clients
 -- get zero access, which is exactly what a one-time-code store needs.
+
+-- ============================================================================
+-- Migration 11: lets each account choose SMS or email as their 2FA channel.
+-- `two_factor_method` (null/'sms'/'email') is the single source of truth for
+-- whether 2FA is enabled and which channel to challenge at login — it's only
+-- ever set right after a code has actually been verified for that channel,
+-- so no separate "verified" flag is needed per channel. Email codes are
+-- tracked the same way phone codes are, in their own short-lived table.
+-- ============================================================================
+
+alter table public.profiles add column if not exists two_factor_method text
+  check (two_factor_method in ('sms', 'email'));
+
+create table if not exists public.email_verifications (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  code text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists email_verifications_email_idx on public.email_verifications (email);
+
+alter table public.email_verifications enable row level security;
+-- No policies defined on purpose: only the service-role key (used by
+-- api/email/*.js) can read or write this table — same rationale as
+-- phone_verifications above.

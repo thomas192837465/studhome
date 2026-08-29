@@ -51,6 +51,8 @@ export interface ListingDraft {
   ville: string;
   quartier: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   universities: string[];
   description: string;
   equipements: string[];
@@ -67,6 +69,8 @@ export const emptyDraft: ListingDraft = {
   ville: "",
   quartier: "",
   address: "",
+  latitude: undefined,
+  longitude: undefined,
   universities: [],
   description: "",
   equipements: [],

@@ -1,6 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Bed, Building2, Building, Users2, Warehouse, UploadCloud, X, Info, MapPin, GraduationCap, Video, Film } from "lucide-react";
+import {
+  Bed,
+  Building2,
+  Building,
+  Users2,
+  Warehouse,
+  UploadCloud,
+  X,
+  Info,
+  MapPin,
+  LocateFixed,
+  Loader2,
+  CheckCircle2,
+  GraduationCap,
+  Video,
+  Film,
+} from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck } from "@fortawesome/free-solid-svg-icons";
 import { useOwner } from "../../context/OwnerContext";
@@ -8,6 +24,7 @@ import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
 import { getVideoDuration } from "../../lib/validateVideo";
 import { uploadListingVideo } from "../../lib/uploadPhoto";
+import { getCurrentPosition, reverseGeocode } from "../../lib/geolocation";
 import { Autocomplete } from "../../components/Autocomplete";
 import type { ListingDraft } from "../../data/listingTypes";
 import { cameroonCities, quartiersByVille, cameroonUniversities } from "../../data/cameroonLocations";
@@ -41,6 +58,10 @@ export function PublishWizard() {
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState("");
   const [uniInput, setUniInput] = useState("");
+  const [locationMode, setLocationMode] = useState<"gps" | "manual" | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [geocodedLabel, setGeocodedLabel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -57,6 +78,8 @@ export function PublishWizard() {
         ville: editingListing.city,
         quartier: editingListing.quartier,
         address: editingListing.address,
+        latitude: editingListing.latitude,
+        longitude: editingListing.longitude,
         universities: editingListing.universities,
         description: editingListing.description,
         equipements: editingListing.equipements,
@@ -68,12 +91,39 @@ export function PublishWizard() {
         disponibleDate: "",
       };
       updateDraft(asDraft);
+      if (editingListing.latitude != null && editingListing.longitude != null) {
+        setLocationMode("gps");
+        setGeocodedLabel([editingListing.quartier, editingListing.city].filter(Boolean).join(", "));
+      } else if (editingListing.quartier) {
+        setLocationMode("manual");
+      }
     } else {
       resetDraft();
     }
     initialized.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, editingListing]);
+
+  const handleUseCurrentLocation = async () => {
+    setLocating(true);
+    setLocationError("");
+    try {
+      const coords = await getCurrentPosition();
+      const geo = await reverseGeocode(coords);
+      updateDraft({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        ville: draft.ville || geo.city,
+        quartier: geo.area || draft.quartier,
+      });
+      setGeocodedLabel(geo.label);
+      setLocationMode("gps");
+    } catch (err) {
+      setLocationError(err instanceof Error ? err.message : "Impossible de localiser votre logement.");
+    } finally {
+      setLocating(false);
+    }
+  };
 
   if (editId && !editingListing) {
     return <div className="p-10 text-center text-gray-400">Chargement de l'annonce...</div>;
@@ -196,47 +246,133 @@ export function PublishWizard() {
           <div>
             <h2 className="font-display text-xl font-bold text-brand-navy">Informations sur le logement</h2>
             <p className="mt-1 text-sm text-gray-500">Renseignez les détails de votre logement.</p>
-            <div className="mt-6 grid sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Ville *</span>
-                <Autocomplete
-                  value={draft.ville}
-                  onChange={(v) => updateDraft({ ville: v, quartier: "" })}
-                  options={villes}
-                  placeholder="Ex : Yaoundé"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Quartier *</span>
-                <select
-                  value={draft.quartier}
-                  onChange={(e) => updateDraft({ quartier: e.target.value })}
-                  disabled={!draft.ville}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 disabled:bg-gray-50"
-                >
-                  <option value="">Sélectionner</option>
-                  {(quartiersByVille[draft.ville] ?? []).map((q) => (
-                    <option key={q}>{q}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label className="block mt-4">
-              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Zone de localisation *</span>
-              <input
-                value={draft.address}
-                onChange={(e) => updateDraft({ address: e.target.value })}
-                placeholder="Ex : Rue 1.234, derrière la pharmacie du Carrefour, Bastos"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+            <label className="block mt-6 max-w-sm">
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Ville *</span>
+              <Autocomplete
+                value={draft.ville}
+                onChange={(v) => updateDraft({ ville: v, quartier: "" })}
+                options={villes}
+                placeholder="Ex : Yaoundé"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
               />
-              <span className="mt-1 flex items-start gap-1.5 text-xs text-gray-400">
-                <Info size={13} className="mt-0.5 shrink-0" />
-                Cette adresse ne sera visible par un étudiant qu'après avoir débloqué le contact (payant). Elle
-                n'apparaît jamais publiquement.
-              </span>
             </label>
+
+            <div className="mt-5">
+              <span className="mb-2 block text-sm font-medium text-brand-navy">Localisation du logement *</span>
+
+              {locationMode === null && (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={locating}
+                    className="flex flex-col items-start gap-2 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-blue hover:bg-brand-blue-light transition-colors disabled:opacity-60"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue">
+                      <LocateFixed size={18} />
+                    </span>
+                    <span className="font-semibold text-brand-navy text-sm">Je suis dans le logement</span>
+                    <span className="text-xs text-gray-500">
+                      Utilisez votre position actuelle pour localiser précisément le logement.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocationMode("manual")}
+                    className="flex flex-col items-start gap-2 rounded-xl border border-gray-200 p-4 text-left hover:border-gray-300 transition-colors"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                      <MapPin size={18} />
+                    </span>
+                    <span className="font-semibold text-brand-navy text-sm">Je ne suis pas actuellement sur place</span>
+                    <span className="text-xs text-gray-500">
+                      Indiquez le quartier approximativement, un agent confirmera la position plus tard.
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {locating && (
+                <p className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 size={15} className="animate-spin" /> Localisation en cours...
+                </p>
+              )}
+
+              {locationError && <p className="mt-3 text-sm text-red-500">{locationError}</p>}
+
+              {locationMode === "gps" && !locating && (
+                <div className="mt-3 rounded-xl bg-brand-green-light border border-green-100 p-4">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-green-800">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    Nous avons localisé votre logement ici : {geocodedLabel || `${draft.quartier}, ${draft.ville}`}.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationMode(null);
+                      setLocationError("");
+                      updateDraft({ latitude: undefined, longitude: undefined });
+                    }}
+                    className="mt-2 text-xs font-medium text-green-700 underline"
+                  >
+                    Localiser à nouveau
+                  </button>
+
+                  <label className="block mt-4">
+                    <span className="mb-1.5 block text-sm font-medium text-brand-navy">
+                      Comment reconnaître le logement ?
+                    </span>
+                    <input
+                      value={draft.address}
+                      onChange={(e) => updateDraft({ address: e.target.value })}
+                      placeholder="Ex : Immeuble jaune, portail noir, derrière la pharmacie"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {locationMode === "manual" && (
+                <div className="mt-3 space-y-4">
+                  <p className="rounded-xl bg-brand-blue-light px-4 py-3 text-sm text-gray-700">
+                    Pas de problème ! Vous pouvez continuer à publier votre logement. Un agent StudHome vous
+                    contactera prochainement afin de confirmer avec vous la localisation exacte du logement.
+                  </p>
+                  <label className="block max-w-sm">
+                    <span className="mb-1.5 block text-sm font-medium text-brand-navy">Quartier (approximatif) *</span>
+                    <select
+                      value={draft.quartier}
+                      onChange={(e) => updateDraft({ quartier: e.target.value })}
+                      disabled={!draft.ville}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 disabled:bg-gray-50"
+                    >
+                      <option value="">Sélectionner</option>
+                      {(quartiersByVille[draft.ville] ?? []).map((q) => (
+                        <option key={q}>{q}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-brand-navy">Détails complémentaires (optionnel)</span>
+                    <input
+                      value={draft.address}
+                      onChange={(e) => updateDraft({ address: e.target.value })}
+                      placeholder="Ex : Rue 1.234, derrière la pharmacie du Carrefour"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                    />
+                  </label>
+                  <button type="button" onClick={() => setLocationMode(null)} className="text-xs font-medium text-gray-400">
+                    ← Changer de méthode
+                  </button>
+                </div>
+              )}
+
+              <span className="mt-3 flex items-start gap-1.5 text-xs text-gray-400">
+                <Info size={13} className="mt-0.5 shrink-0" />
+                Ces informations de localisation précise ne sont visibles par un étudiant qu'après avoir débloqué le
+                contact (payant). Elles n'apparaissent jamais publiquement.
+              </span>
+            </div>
 
             <label className="block mt-4">
               <span className="mb-1.5 block text-sm font-medium text-brand-navy">Université(s) à proximité</span>
@@ -610,7 +746,12 @@ export function PublishWizard() {
                   step === 1
                     ? !draft.type
                     : step === 2
-                      ? !draft.ville || !draft.quartier || !draft.address.trim()
+                      ? !draft.ville ||
+                        (locationMode === "gps"
+                          ? draft.latitude == null
+                          : locationMode === "manual"
+                            ? !draft.quartier
+                            : true)
                       : step === 3
                         ? draft.photos.length === 0
                         : false

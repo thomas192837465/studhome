@@ -3,7 +3,7 @@ import type { Transaction, User } from "../data/types";
 import { supabase } from "../lib/supabase";
 import { makeReferralCode, type ProfileRow } from "../lib/profileMapper";
 import { rowToTransaction, type TransactionRow } from "../lib/transactionMapper";
-import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
+import { isTwoFactorVerifiedForSession, markTwoFactorVerifiedForSession, type TwoFactorMethod } from "../lib/twoFactor";
 
 const emptyUser: User = {
   firstName: "",
@@ -50,13 +50,19 @@ interface AppContextValue {
   isAuthenticated: boolean;
   authLoading: boolean;
   mfaPending: boolean;
-  mfaPhone: string;
+  mfaMethod: TwoFactorMethod | null;
+  mfaIdentifier: string;
   user: User;
   credits: number;
   favorites: string[];
   unlockedListings: string[];
   transactions: Transaction[];
-  signup: (email: string, password: string, meta: { firstName: string; lastName: string }) => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    meta: { firstName: string; lastName: string },
+    verified: { method: TwoFactorMethod; identifier: string },
+  ) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   completeMfaChallenge: () => Promise<void>;
   logout: () => Promise<void>;
@@ -74,7 +80,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mfaPending, setMfaPending] = useState(false);
-  const [mfaPhone, setMfaPhone] = useState("");
+  const [mfaMethod, setMfaMethod] = useState<TwoFactorMethod | null>(null);
+  const [mfaIdentifier, setMfaIdentifier] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [user, setUser] = useState<User>(emptyUser);
@@ -101,19 +108,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
     setMfaPending(false);
     setPendingUserId(null);
-    setMfaPhone("");
+    setMfaMethod(null);
+    setMfaIdentifier("");
     await fetchAccountData(userId);
   };
 
   // Single entry point after any successful primary auth (signup, login, or
   // session restore on page load): fetches the profile once and decides
-  // whether the custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed
-  // for this browser session.
+  // whether the custom 2FA challenge (SMS or email, via our own endpoints)
+  // is still owed for this browser session.
   const finalizeAuth = async (userId: string) => {
     const profile = await fetchProfile(userId);
-    if (profile?.phone_verified && !isPhoneVerifiedForSession(userId)) {
+    if (profile?.two_factor_method && !isTwoFactorVerifiedForSession(userId)) {
       setPendingUserId(userId);
-      setMfaPhone(profile.phone);
+      setMfaMethod(profile.two_factor_method);
+      setMfaIdentifier(profile.two_factor_method === "email" ? profile.email ?? "" : profile.phone);
       setMfaPending(true);
       return;
     }
@@ -134,7 +143,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTransactions([]);
         setIsAuthenticated(false);
         setMfaPending(false);
-        setMfaPhone("");
+        setMfaMethod(null);
+        setMfaIdentifier("");
         setPendingUserId(null);
         setAuthLoading(false);
         return;
@@ -161,24 +171,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signup = async (email: string, password: string, meta: { firstName: string; lastName: string }) => {
+  // Called only after the caller (Login.tsx) has already sent and verified a
+  // code for `verified.identifier` via our own SMS/email endpoints — the
+  // account itself is created here for the first time, so an abandoned
+  // signup never leaves a real account behind without 2FA proven.
+  const signup = async (
+    email: string,
+    password: string,
+    meta: { firstName: string; lastName: string },
+    verified: { method: TwoFactorMethod; identifier: string },
+  ) => {
+    const phone = verified.method === "sms" ? verified.identifier : "";
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { first_name: meta.firstName, last_name: meta.lastName, role: "etudiant" } },
+      options: {
+        data: { first_name: meta.firstName, last_name: meta.lastName, phone, role: "etudiant" },
+      },
     });
     if (error) throw error;
     if (!data.session || !data.user) {
       // Supabase only returns a session immediately when "Confirm email" is
-      // disabled — required here since identity is verified by phone (via
-      // the mandatory 2FA enrollment step right after signup) instead.
+      // disabled — required here since identity is verified by SMS/email
+      // instead.
       throw new Error(
-        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone.",
+        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone/email.",
       );
     }
-    // A brand-new account never has phone_verified set yet, so this always
-    // goes straight through — the caller (Login.tsx) drives the mandatory
-    // phone enrollment step (MfaEnrollForm) before treating signup as done.
+    const patch: Record<string, string> = { two_factor_method: verified.method };
+    if (verified.method === "sms") patch.phone = verified.identifier;
+    const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", data.user.id);
+    if (updateError) throw updateError;
+    markTwoFactorVerifiedForSession(data.user.id);
     await finalizeAuth(data.user.id);
   };
 
@@ -191,7 +215,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const completeMfaChallenge = async () => {
     if (!pendingUserId) return;
-    markPhoneVerifiedForSession(pendingUserId);
+    markTwoFactorVerifiedForSession(pendingUserId);
     await applyAuthenticatedUser(pendingUserId, await fetchProfile(pendingUserId));
   };
 
@@ -263,7 +287,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       authLoading,
       mfaPending,
-      mfaPhone,
+      mfaMethod,
+      mfaIdentifier,
       user,
       credits,
       favorites,
@@ -284,7 +309,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       authLoading,
       mfaPending,
-      mfaPhone,
+      mfaMethod,
+      mfaIdentifier,
       user,
       credits,
       favorites,

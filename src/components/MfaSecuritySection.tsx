@@ -3,16 +3,20 @@ import { ShieldCheck, ShieldOff } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { supabase } from "../lib/supabase";
+import { markTwoFactorVerifiedForSession, type TwoFactorMethod } from "../lib/twoFactor";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 type FactorState = "loading" | "none" | "enrolled";
 
-// Self-contained "enable/disable SMS 2FA" block reused across the student,
-// owner and admin profile/settings pages. Reads/writes profiles.phone_verified
-// directly (our own Twilio-Verify-backed 2FA, not Supabase's paid MFA).
+// Self-contained "enable/disable 2FA" block reused across the student,
+// owner and admin profile/settings pages. Reads/writes
+// profiles.two_factor_method directly (our own SMS/email 2FA, not
+// Supabase's paid MFA).
 export function MfaSecuritySection() {
   const [state, setState] = useState<FactorState>("loading");
   const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
+  const [method, setMethod] = useState<TwoFactorMethod | null>(null);
   const [disabling, setDisabling] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,9 +29,10 @@ export function MfaSecuritySection() {
       return;
     }
     setUserId(id);
+    setEmail(userData.user?.email ?? "");
     const { data, error: fetchError } = await supabase
       .from("profiles")
-      .select("phone_verified")
+      .select("two_factor_method")
       .eq("id", id)
       .maybeSingle();
     if (fetchError) {
@@ -35,12 +40,27 @@ export function MfaSecuritySection() {
       setState("none");
       return;
     }
-    setState(data?.phone_verified ? "enrolled" : "none");
+    setMethod(data?.two_factor_method ?? null);
+    setState(data?.two_factor_method ? "enrolled" : "none");
   };
 
   useEffect(() => {
     refresh();
   }, []);
+
+  const handleVerified = async (verifiedMethod: TwoFactorMethod, identifier: string) => {
+    setError("");
+    try {
+      const patch: Record<string, string | null> = { two_factor_method: verifiedMethod };
+      if (verifiedMethod === "sms") patch.phone = identifier;
+      const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", userId);
+      if (updateError) throw updateError;
+      markTwoFactorVerifiedForSession(userId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'activer la double authentification.");
+    }
+  };
 
   const handleDisable = async () => {
     setError("");
@@ -48,7 +68,7 @@ export function MfaSecuritySection() {
     try {
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ phone_verified: false })
+        .update({ two_factor_method: null })
         .eq("id", userId);
       if (updateError) throw updateError;
       await refresh();
@@ -69,10 +89,10 @@ export function MfaSecuritySection() {
       {state === "enrolled" ? (
         <div className="rounded-xl border border-gray-100 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-brand-green">
-            <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Activée pour ce compte
+            <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Activée par {method === "email" ? "email" : "SMS"}
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            Un code par SMS vous sera demandé à chaque nouvelle session sur un appareil.
+            Un code vous sera demandé à chaque nouvelle session sur un appareil.
           </p>
           {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
           <button
@@ -85,7 +105,7 @@ export function MfaSecuritySection() {
           </button>
         </div>
       ) : (
-        <MfaEnrollForm onEnrolled={refresh} />
+        <MfaEnrollForm email={email} onVerified={handleVerified} />
       )}
     </div>
   );

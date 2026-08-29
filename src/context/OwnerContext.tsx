@@ -5,7 +5,7 @@ import type { OwnerUser } from "../data/ownerTypes";
 import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
 import { useListings } from "./ListingsContext";
-import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
+import { isTwoFactorVerifiedForSession, markTwoFactorVerifiedForSession, type TwoFactorMethod } from "../lib/twoFactor";
 
 const emptyOwnerUser: OwnerUser = {
   fullName: "",
@@ -58,11 +58,17 @@ interface OwnerContextValue {
   isOwnerAuthenticated: boolean;
   authLoading: boolean;
   mfaPending: boolean;
-  mfaPhone: string;
+  mfaMethod: TwoFactorMethod | null;
+  mfaIdentifier: string;
   ownerId: string | null;
   ownerUser: OwnerUser;
   draft: ListingDraft;
-  signup: (email: string, password: string, meta: { fullName: string; phone: string }) => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    meta: { fullName: string },
+    verified: { method: TwoFactorMethod; identifier: string },
+  ) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   completeMfaChallenge: () => Promise<void>;
   logout: () => Promise<void>;
@@ -79,7 +85,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [isOwnerAuthenticated, setIsOwnerAuthenticated] = useState(false);
   const [mfaPending, setMfaPending] = useState(false);
-  const [mfaPhone, setMfaPhone] = useState("");
+  const [mfaMethod, setMfaMethod] = useState<TwoFactorMethod | null>(null);
+  const [mfaIdentifier, setMfaIdentifier] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [ownerUser, setOwnerUser] = useState<OwnerUser>(emptyOwnerUser);
@@ -95,16 +102,18 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     setIsOwnerAuthenticated(true);
     setMfaPending(false);
     setPendingUserId(null);
-    setMfaPhone("");
+    setMfaMethod(null);
+    setMfaIdentifier("");
   };
 
   // Decides, from an already-fetched "proprietaire" profile, whether the
-  // custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed for this
-  // browser session before granting owner access.
+  // custom 2FA challenge (SMS or email, via our own endpoints) is still owed
+  // for this browser session before granting owner access.
   const finalizeAuth = (userId: string, profile: ProfileRow) => {
-    if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {
+    if (profile.two_factor_method && !isTwoFactorVerifiedForSession(userId)) {
       setPendingUserId(userId);
-      setMfaPhone(profile.phone);
+      setMfaMethod(profile.two_factor_method);
+      setMfaIdentifier(profile.two_factor_method === "email" ? profile.email ?? "" : profile.phone);
       setMfaPending(true);
       return;
     }
@@ -121,7 +130,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
         setMfaPending(false);
-        setMfaPhone("");
+        setMfaMethod(null);
+        setMfaIdentifier("");
         setPendingUserId(null);
         setAuthLoading(false);
         return;
@@ -136,7 +146,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
         setMfaPending(false);
-        setMfaPhone("");
+        setMfaMethod(null);
+        setMfaIdentifier("");
         setPendingUserId(null);
         setAuthLoading(false);
         return;
@@ -162,29 +173,41 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signup = async (email: string, password: string, meta: { fullName: string; phone: string }) => {
+  // Called only after the caller (OwnerSignup.tsx) has already sent and
+  // verified a code for `verified.identifier` via our own endpoints — the
+  // account itself is created here for the first time, so an abandoned
+  // signup never leaves a real account behind without 2FA proven.
+  const signup = async (
+    email: string,
+    password: string,
+    meta: { fullName: string },
+    verified: { method: TwoFactorMethod; identifier: string },
+  ) => {
     const [firstName, ...rest] = meta.fullName.trim().split(/\s+/).filter(Boolean);
+    const phone = verified.method === "sms" ? verified.identifier : "";
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { first_name: firstName ?? "", last_name: rest.join(" "), phone: meta.phone, role: "proprietaire" },
+        data: { first_name: firstName ?? "", last_name: rest.join(" "), phone, role: "proprietaire" },
       },
     });
     if (error) throw error;
     if (!data.session || !data.user) {
       // Supabase only returns a session immediately when "Confirm email" is
-      // disabled — required here since identity is verified by phone (via
-      // the mandatory 2FA enrollment step right after signup) instead.
+      // disabled — required here since identity is verified by SMS/email
+      // instead.
       throw new Error(
-        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone.",
+        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone/email.",
       );
     }
+    const patch: Record<string, string> = { two_factor_method: verified.method };
+    if (verified.method === "sms") patch.phone = verified.identifier;
+    const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", data.user.id);
+    if (updateError) throw updateError;
+    markTwoFactorVerifiedForSession(data.user.id);
     const profile = await fetchProfile(data.user.id);
     if (!profile) throw new Error("Erreur lors de la création du compte, réessayez.");
-    // A brand-new account never has phone_verified set yet, so this always
-    // goes straight through — the caller drives the mandatory phone
-    // enrollment step (MfaEnrollForm) before treating signup as complete.
     finalizeAuth(data.user.id, profile);
   };
 
@@ -204,7 +227,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
 
   const completeMfaChallenge = async () => {
     if (!pendingUserId) return;
-    markPhoneVerifiedForSession(pendingUserId);
+    markTwoFactorVerifiedForSession(pendingUserId);
     const profile = await fetchProfile(pendingUserId);
     if (profile) applyAuthenticatedUser(pendingUserId, profile);
   };
@@ -251,7 +274,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       isOwnerAuthenticated,
       authLoading,
       mfaPending,
-      mfaPhone,
+      mfaMethod,
+      mfaIdentifier,
       ownerId: authUserId,
       ownerUser,
       draft: local.draft,
@@ -264,7 +288,17 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       resetDraft,
       submitDraft,
     }),
-    [isOwnerAuthenticated, authLoading, mfaPending, mfaPhone, ownerUser, local, authUserId, pendingUserId],
+    [
+      isOwnerAuthenticated,
+      authLoading,
+      mfaPending,
+      mfaMethod,
+      mfaIdentifier,
+      ownerUser,
+      local,
+      authUserId,
+      pendingUserId,
+    ],
   );
 
   return <OwnerContext.Provider value={value}>{children}</OwnerContext.Provider>;

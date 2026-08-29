@@ -10,7 +10,8 @@ export function AdminLogin() {
   const location = useLocation();
   const isSuper = location.pathname.startsWith("/superadmin");
   const navigate = useNavigate();
-  const { session, mfaPending, mfaPhone, loginWithPassword, completeMfaChallenge, logAction } = useAdminPortal();
+  const { session, mfaPending, mfaMethod, mfaIdentifier, loginWithPassword, completeMfaChallenge, logAction } =
+    useAdminPortal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -81,9 +82,9 @@ export function AdminLogin() {
           </p>
         </div>
 
-        {mfaPending ? (
+        {mfaPending && mfaMethod ? (
           <div className="bg-white p-8 sm:p-10 flex items-center justify-center">
-            <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
+            <MfaChallengeForm method={mfaMethod} identifier={mfaIdentifier} onVerified={completeMfaChallenge} />
           </div>
         ) : (
         <form onSubmit={handleSubmit} className="bg-white p-8 sm:p-10 flex flex-col justify-center space-y-4">
