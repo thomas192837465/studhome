@@ -607,20 +607,37 @@ drop policy if exists "hero_photos_bucket_read" on storage.objects;
 drop policy if exists "hero_photos_bucket_write" on storage.objects;
 drop policy if exists "hero_photos_bucket_delete" on storage.objects;
 
--- ============================================================================
--- Migration 10: custom SMS-based two-factor authentication via the Twilio
--- Verify API, called directly from our own /api/twilio serverless functions
--- (see api/twilio/send-code.js and api/twilio/verify-code.js) instead of
--- Supabase's built-in MFA (Phone), which requires the paid Advanced MFA
--- Phone add-on. `phone_verified` tracks whether the number in `phone` has
--- been proven via a Twilio Verify code and should be challenged at login.
--- ============================================================================
-
-alter table public.profiles add column if not exists phone_verified boolean not null default false;
-
 create policy "hero_photos_bucket_read" on storage.objects
   for select using (bucket_id = 'hero-photos');
 create policy "hero_photos_bucket_write" on storage.objects
   for insert with check (bucket_id = 'hero-photos' and public.is_admin());
 create policy "hero_photos_bucket_delete" on storage.objects
   for delete using (bucket_id = 'hero-photos' and public.is_admin());
+
+-- ============================================================================
+-- Migration 10: custom SMS-based two-factor authentication, sent via
+-- Twilio's plain Messaging API (not Twilio Verify, which requires an
+-- upgraded/paid account to create a Verify Service) from our own
+-- /api/twilio serverless functions. `phone_verified` tracks whether the
+-- number in `phone` has been proven via a code and should be challenged at
+-- login. `phone_verifications` holds short-lived, self-issued OTP codes —
+-- written/read only by the server (service-role key), RLS-locked shut to
+-- the anon/authenticated roles used by the browser.
+-- ============================================================================
+
+alter table public.profiles add column if not exists phone_verified boolean not null default false;
+
+create table if not exists public.phone_verifications (
+  id uuid primary key default gen_random_uuid(),
+  phone text not null,
+  code text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists phone_verifications_phone_idx on public.phone_verifications (phone);
+
+alter table public.phone_verifications enable row level security;
+-- No policies defined on purpose: only the service-role key (used by
+-- api/twilio/*.js) can read or write this table; anon/authenticated clients
+-- get zero access, which is exactly what a one-time-code store needs.

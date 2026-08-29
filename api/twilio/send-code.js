@@ -1,8 +1,12 @@
-// Sends a one-time SMS verification code via Twilio Verify. Used both for
-// enrolling a phone number (MfaEnrollForm) and for the login-time 2FA
-// challenge (MfaChallengeForm) — kept as a thin, stateless wrapper around
-// Twilio's own Verify API, which handles code generation, expiry and
-// rate-limiting for us.
+import { getServiceClient } from "../_lib/adminAuth.js";
+
+const CODE_TTL_MS = 5 * 60 * 1000;
+
+// Sends a one-time SMS verification code via Twilio's plain Messaging API.
+// Twilio Verify would normally handle code generation/expiry/storage for
+// us, but creating a Verify Service is gated behind an account upgrade on
+// trial accounts — so this generates and tracks the code itself in the
+// phone_verifications table instead.
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Méthode non autorisée" });
@@ -17,16 +21,31 @@ export default async function handler(req, res) {
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-  if (!accountSid || !authToken || !verifyServiceSid) {
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  if (!accountSid || !authToken || !fromNumber) {
     res.status(500).json({ error: "Configuration Twilio manquante côté serveur" });
     return;
   }
 
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
+
   try {
+    const serviceClient = getServiceClient();
+    // Drop any earlier unused code for this number before issuing a new one.
+    await serviceClient.from("phone_verifications").delete().eq("phone", phone);
+    const { error: insertError } = await serviceClient
+      .from("phone_verifications")
+      .insert({ phone, code, expires_at: expiresAt });
+    if (insertError) throw insertError;
+
     const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-    const body = new URLSearchParams({ To: phone, Channel: "sms" });
-    const twilioRes = await fetch(`https://verify.twilio.com/v2/Services/${verifyServiceSid}/Verifications`, {
+    const body = new URLSearchParams({
+      To: phone,
+      From: fromNumber,
+      Body: `Votre code de vérification StudHome : ${code}`,
+    });
+    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${auth}`,
@@ -41,7 +60,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ success: true, status: data.status });
+    res.status(200).json({ success: true });
   } catch {
     res.status(500).json({ error: "Erreur serveur lors de l'envoi du code" });
   }

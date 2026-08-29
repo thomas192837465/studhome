@@ -54,7 +54,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   // Decides, from an already-resolved admin/superadmin session, whether the
-  // custom SMS 2FA challenge (via Twilio Verify) is still owed for this
+  // custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed for this
   // browser session before granting admin access.
   const finalizeAuth = (userId: string, profile: ProfileRow, nextSession: AdminSession) => {
     if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {

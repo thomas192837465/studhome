@@ -107,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Single entry point after any successful primary auth (signup, login, or
   // session restore on page load): fetches the profile once and decides
-  // whether the custom SMS 2FA challenge (via Twilio Verify) is still owed
+  // whether the custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed
   // for this browser session.
   const finalizeAuth = async (userId: string) => {
     const profile = await fetchProfile(userId);

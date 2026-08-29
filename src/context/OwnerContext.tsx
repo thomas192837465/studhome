@@ -99,7 +99,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   };
 
   // Decides, from an already-fetched "proprietaire" profile, whether the
-  // custom SMS 2FA challenge (via Twilio Verify) is still owed for this
+  // custom SMS 2FA challenge (via our own Twilio-backed endpoints) is still owed for this
   // browser session before granting owner access.
   const finalizeAuth = (userId: string, profile: ProfileRow) => {
     if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {

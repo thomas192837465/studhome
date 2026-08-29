@@ -7,7 +7,7 @@ type Step = "phone" | "code";
 
 // Lets an already-authenticated user turn on SMS-based 2FA from their
 // profile settings (or complete the mandatory step right after signup).
-// Verifies the number via Twilio Verify directly, then records it on the
+// Verifies the number via our own Twilio SMS endpoints, then records it on the
 // user's own profile row.
 export function MfaEnrollForm({ onEnrolled, onCancel }: { onEnrolled: () => void; onCancel?: () => void }) {
   const [step, setStep] = useState<Step>("phone");

@@ -21,7 +21,7 @@ export async function checkVerificationCode(phone: string, code: string): Promis
 
 // Per-browser-session memory of a completed 2FA challenge, keyed by user id.
 // Supabase's native MFA persists this in the JWT itself (AAL2); rolling our
-// own via Twilio Verify has no equivalent, so re-verifying on every page
+// own via a plain Twilio SMS has no equivalent, so re-verifying on every page
 // refresh would otherwise resend an SMS each time. Cleared when the tab/
 // window closes, so a fresh browser session always re-challenges.
 const sessionKey = (userId: string) => `studhome-2fa-ok-${userId}`;
