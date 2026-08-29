@@ -15,11 +15,11 @@ export function PaymentCallback() {
     if (ran.current) return;
     ran.current = true;
 
-    // We send our reference to NotchPay as "?ref=..." so their own appended
-    // "reference" param (their transaction id, needed to look up the payment)
-    // arrives here unambiguously as "reference".
-    const notchpayId = params.get("reference");
-    if (!notchpayId) {
+    // KoraPay redirects back here with "?reference=<ours>" appended verbatim
+    // (the reference we generated during initialize), so no extra param
+    // juggling is needed to disambiguate it from a provider-side id.
+    const reference = params.get("reference");
+    if (!reference) {
       setFailed(true);
       setErrorDetail("Référence de paiement manquante.");
       return;
@@ -27,7 +27,7 @@ export function PaymentCallback() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/notchpay/verify?reference=${encodeURIComponent(notchpayId)}`);
+        const res = await fetch(`/api/korapay/verify?reference=${encodeURIComponent(reference)}`);
         const data = await res.json();
         if (data.success) {
           await buyPack(data.credits, data.price, data.packName);

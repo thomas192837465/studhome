@@ -18,23 +18,22 @@ export function Payment() {
     setProcessing(true);
     setError("");
     try {
-      const res = await fetch("/api/notchpay/initialize", {
+      const res = await fetch("/api/korapay/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           packId: pack.id,
           name: `${user.firstName} ${user.lastName}`.trim() || "Étudiant StudHome",
           email: user.email,
-          phone: user.phone,
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.authorizationUrl) {
+      if (!res.ok || !data.checkoutUrl) {
         setError(data.error || "Impossible d'initialiser le paiement pour le moment.");
         setProcessing(false);
         return;
       }
-      window.location.href = data.authorizationUrl;
+      window.location.href = data.checkoutUrl;
     } catch {
       setError("Impossible de contacter le service de paiement.");
       setProcessing(false);
@@ -63,7 +62,7 @@ export function Payment() {
         </div>
 
         <h2 className="text-sm font-semibold text-gray-500 mb-1">Choisissez votre méthode de paiement</h2>
-        <p className="text-xs text-gray-400 mb-3">Vous confirmerez le paiement sur la page sécurisée NotchPay.</p>
+        <p className="text-xs text-gray-400 mb-3">Vous confirmerez le paiement sur la page sécurisée KoraPay.</p>
         <div className="space-y-3 mb-6">
           {paymentMethods.map((m) => (
             <label
