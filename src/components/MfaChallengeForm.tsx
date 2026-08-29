@@ -1,36 +1,26 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { sendVerificationCode, checkVerificationCode } from "../lib/phoneVerification";
 
 // Shown right after a first-factor login (password) when the account has SMS
-// 2FA enrolled. Verifying refreshes the Supabase session to AAL2 in the
-// background — the app's own onAuthStateChange listener picks that up and
-// finishes signing the user in, so this component only needs to call
-// onVerified() as a UI hint (e.g. to stop rendering itself).
-export function MfaChallengeForm({ onVerified }: { onVerified: () => void }) {
-  const [factorId, setFactorId] = useState("");
-  const [challengeId, setChallengeId] = useState("");
+// 2FA enrolled. The caller (Login.tsx / OwnerLogin.tsx / AdminLogin.tsx)
+// knows the phone number from the profile it already fetched, and is
+// responsible for marking the session as fully authenticated once
+// onVerified() fires.
+export function MfaChallengeForm({ phone, onVerified }: { phone: string; onVerified: () => void }) {
   const [code, setCode] = useState("");
   const [preparing, setPreparing] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
 
   const startChallenge = async () => {
     setError("");
     setPreparing(true);
+    setSent(false);
     try {
-      // listFactors() doesn't return the enrolled phone number itself (only
-      // id/status/timestamps), so the code-sent message stays generic.
-      const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
-      if (listError) throw listError;
-      const phoneFactor = factors.phone?.[0];
-      if (!phoneFactor) throw new Error("Aucun numéro enregistré pour la double authentification.");
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: phoneFactor.id,
-      });
-      if (challengeError) throw challengeError;
-      setFactorId(phoneFactor.id);
-      setChallengeId(challenge.id);
+      await sendVerificationCode(phone);
+      setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'envoyer le code.");
     } finally {
@@ -48,15 +38,14 @@ export function MfaChallengeForm({ onVerified }: { onVerified: () => void }) {
     setError("");
     setVerifying(true);
     try {
-      const { error: verifyError } = await supabase.auth.mfa.verify({
-        factorId,
-        challengeId,
-        code: code.trim(),
-      });
-      if (verifyError) throw verifyError;
+      const ok = await checkVerificationCode(phone, code.trim());
+      if (!ok) {
+        setError("Code incorrect ou expiré.");
+        return;
+      }
       onVerified();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Code incorrect ou expiré.");
+      setError(err instanceof Error ? err.message : "Impossible de vérifier le code.");
     } finally {
       setVerifying(false);
     }
@@ -71,7 +60,7 @@ export function MfaChallengeForm({ onVerified }: { onVerified: () => void }) {
       <p className="mt-2 text-sm text-gray-500">
         {preparing
           ? "Envoi du code en cours..."
-          : challengeId
+          : sent
             ? "Entrez le code envoyé par SMS au numéro enregistré sur votre compte."
             : "Impossible d'envoyer le code."}
       </p>
@@ -82,14 +71,14 @@ export function MfaChallengeForm({ onVerified }: { onVerified: () => void }) {
           onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
           inputMode="numeric"
           autoFocus
-          disabled={preparing || !challengeId}
+          disabled={preparing || !sent}
           placeholder="Code de vérification"
           className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-brand-blue/30 disabled:bg-gray-50"
         />
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           type="submit"
-          disabled={verifying || preparing || !code || !challengeId}
+          disabled={verifying || preparing || !code || !sent}
           className="w-full rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
         >
           {verifying ? "Vérification..." : "Vérifier"}

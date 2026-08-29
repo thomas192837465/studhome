@@ -607,6 +607,17 @@ drop policy if exists "hero_photos_bucket_read" on storage.objects;
 drop policy if exists "hero_photos_bucket_write" on storage.objects;
 drop policy if exists "hero_photos_bucket_delete" on storage.objects;
 
+-- ============================================================================
+-- Migration 10: custom SMS-based two-factor authentication via the Twilio
+-- Verify API, called directly from our own /api/twilio serverless functions
+-- (see api/twilio/send-code.js and api/twilio/verify-code.js) instead of
+-- Supabase's built-in MFA (Phone), which requires the paid Advanced MFA
+-- Phone add-on. `phone_verified` tracks whether the number in `phone` has
+-- been proven via a Twilio Verify code and should be challenged at login.
+-- ============================================================================
+
+alter table public.profiles add column if not exists phone_verified boolean not null default false;
+
 create policy "hero_photos_bucket_read" on storage.objects
   for select using (bucket_id = 'hero-photos');
 create policy "hero_photos_bucket_write" on storage.objects

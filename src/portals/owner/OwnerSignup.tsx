@@ -12,7 +12,7 @@ type Step = 1 | 2 | 3;
 
 export function OwnerSignup() {
   const navigate = useNavigate();
-  const { mfaPending, signup } = useOwner();
+  const { mfaPending, mfaPhone, signup, completeMfaChallenge } = useOwner();
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -54,7 +54,7 @@ export function OwnerSignup() {
 
         {mfaPending ? (
           <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm">
-            <MfaChallengeForm onVerified={() => {}} />
+            <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
           </div>
         ) : step === 1 ? (
           <div className="rounded-3xl border border-gray-100 p-8 sm:p-10 shadow-sm">

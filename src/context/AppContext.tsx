@@ -3,6 +3,7 @@ import type { Transaction, User } from "../data/types";
 import { supabase } from "../lib/supabase";
 import { makeReferralCode, type ProfileRow } from "../lib/profileMapper";
 import { rowToTransaction, type TransactionRow } from "../lib/transactionMapper";
+import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
 
 const emptyUser: User = {
   firstName: "",
@@ -49,6 +50,7 @@ interface AppContextValue {
   isAuthenticated: boolean;
   authLoading: boolean;
   mfaPending: boolean;
+  mfaPhone: string;
   user: User;
   credits: number;
   favorites: string[];
@@ -56,6 +58,7 @@ interface AppContextValue {
   transactions: Transaction[];
   signup: (email: string, password: string, meta: { firstName: string; lastName: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  completeMfaChallenge: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
   toggleFavorite: (id: string) => void;
@@ -71,6 +74,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mfaPending, setMfaPending] = useState(false);
+  const [mfaPhone, setMfaPhone] = useState("");
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [user, setUser] = useState<User>(emptyUser);
   const [credits, setCredits] = useState(0);
@@ -89,14 +94,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTransactions(((txRes.data ?? []) as TransactionRow[]).map(rowToTransaction));
   };
 
-  const applyAuthenticatedUser = async (userId: string) => {
-    const profile = await fetchProfile(userId);
+  const applyAuthenticatedUser = async (userId: string, profile: ProfileRow | null) => {
     setAuthUserId(userId);
     setUser(profile ? profileToUser(profile) : emptyUser);
     setCredits(profile?.credits ?? 0);
     setIsAuthenticated(true);
     setMfaPending(false);
+    setPendingUserId(null);
+    setMfaPhone("");
     await fetchAccountData(userId);
+  };
+
+  // Single entry point after any successful primary auth (signup, login, or
+  // session restore on page load): fetches the profile once and decides
+  // whether the custom SMS 2FA challenge (via Twilio Verify) is still owed
+  // for this browser session.
+  const finalizeAuth = async (userId: string) => {
+    const profile = await fetchProfile(userId);
+    if (profile?.phone_verified && !isPhoneVerifiedForSession(userId)) {
+      setPendingUserId(userId);
+      setMfaPhone(profile.phone);
+      setMfaPending(true);
+      return;
+    }
+    await applyAuthenticatedUser(userId, profile);
   };
 
   useEffect(() => {
@@ -113,20 +134,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTransactions([]);
         setIsAuthenticated(false);
         setMfaPending(false);
+        setMfaPhone("");
+        setPendingUserId(null);
         setAuthLoading(false);
         return;
       }
-      // An account can have SMS 2FA enrolled — a fresh sign-in only reaches
-      // AAL1, and full app access must wait until the second factor is
-      // verified (see MfaChallengeForm, rendered by Login.tsx while pending).
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!active) return;
-      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-        setMfaPending(true);
-        setAuthLoading(false);
-        return;
-      }
-      await applyAuthenticatedUser(session.user.id);
+      await finalizeAuth(session.user.id);
       if (!active) return;
       setAuthLoading(false);
     };
@@ -145,20 +158,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // A signup re-run for an email that already has an account (e.g. a returning
-  // user who mistakenly went through "Créer un compte" again) could belong to
-  // an account with SMS 2FA already enrolled — route through the same MFA
-  // gate as a normal login rather than granting access unconditionally.
-  const finalizeIfNoMfa = async (userId: string) => {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      setMfaPending(true);
-      return;
-    }
-    await applyAuthenticatedUser(userId);
-  };
 
   const signup = async (email: string, password: string, meta: { firstName: string; lastName: string }) => {
     const { data, error } = await supabase.auth.signUp({
@@ -175,17 +176,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone.",
       );
     }
-    // No MFA factor exists yet on a brand-new account, so this always
-    // resolves at AAL1/AAL1 — the caller drives the mandatory phone
-    // enrollment step (MfaEnrollForm) before treating signup as complete.
-    await applyAuthenticatedUser(data.user.id);
+    // A brand-new account never has phone_verified set yet, so this always
+    // goes straight through — the caller (Login.tsx) drives the mandatory
+    // phone enrollment step (MfaEnrollForm) before treating signup as done.
+    await finalizeAuth(data.user.id);
   };
 
   const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error("Email ou mot de passe incorrect.");
     if (!data.user) throw new Error("Connexion impossible, réessayez.");
-    await finalizeIfNoMfa(data.user.id);
+    await finalizeAuth(data.user.id);
+  };
+
+  const completeMfaChallenge = async () => {
+    if (!pendingUserId) return;
+    markPhoneVerifiedForSession(pendingUserId);
+    await applyAuthenticatedUser(pendingUserId, await fetchProfile(pendingUserId));
   };
 
   const logout = async () => {
@@ -256,6 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       authLoading,
       mfaPending,
+      mfaPhone,
       user,
       credits,
       favorites,
@@ -263,6 +271,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       transactions,
       signup,
       login,
+      completeMfaChallenge,
       logout,
       updateUser,
       toggleFavorite,
@@ -271,7 +280,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unlockListing,
       buyPack,
     }),
-    [isAuthenticated, authLoading, mfaPending, user, credits, favorites, unlockedListings, transactions, authUserId],
+    [
+      isAuthenticated,
+      authLoading,
+      mfaPending,
+      mfaPhone,
+      user,
+      credits,
+      favorites,
+      unlockedListings,
+      transactions,
+      authUserId,
+      pendingUserId,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

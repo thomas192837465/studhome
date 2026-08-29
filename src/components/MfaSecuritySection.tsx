@@ -8,28 +8,34 @@ import { MfaEnrollForm } from "./MfaEnrollForm";
 type FactorState = "loading" | "none" | "enrolled";
 
 // Self-contained "enable/disable SMS 2FA" block reused across the student,
-// owner and admin profile/settings pages.
+// owner and admin profile/settings pages. Reads/writes profiles.phone_verified
+// directly (our own Twilio-Verify-backed 2FA, not Supabase's paid MFA).
 export function MfaSecuritySection() {
   const [state, setState] = useState<FactorState>("loading");
-  const [factorId, setFactorId] = useState("");
+  const [userId, setUserId] = useState("");
   const [disabling, setDisabling] = useState(false);
   const [error, setError] = useState("");
 
   const refresh = async () => {
     setState("loading");
-    const { data, error: listError } = await supabase.auth.mfa.listFactors();
-    if (listError) {
-      setError(listError.message);
+    const { data: userData } = await supabase.auth.getUser();
+    const id = userData.user?.id;
+    if (!id) {
       setState("none");
       return;
     }
-    const phoneFactor = data.phone?.[0];
-    if (phoneFactor) {
-      setFactorId(phoneFactor.id);
-      setState("enrolled");
-    } else {
+    setUserId(id);
+    const { data, error: fetchError } = await supabase
+      .from("profiles")
+      .select("phone_verified")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError) {
+      setError(fetchError.message);
       setState("none");
+      return;
     }
+    setState(data?.phone_verified ? "enrolled" : "none");
   };
 
   useEffect(() => {
@@ -40,8 +46,11 @@ export function MfaSecuritySection() {
     setError("");
     setDisabling(true);
     try {
-      const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId });
-      if (unenrollError) throw unenrollError;
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ phone_verified: false })
+        .eq("id", userId);
+      if (updateError) throw updateError;
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de désactiver la double authentification.");
@@ -63,7 +72,7 @@ export function MfaSecuritySection() {
             <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Activée pour ce compte
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            Un code par SMS vous sera demandé à chaque connexion sur un nouvel appareil.
+            Un code par SMS vous sera demandé à chaque nouvelle session sur un appareil.
           </p>
           {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
           <button

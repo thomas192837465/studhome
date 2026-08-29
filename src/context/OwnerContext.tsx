@@ -5,6 +5,7 @@ import type { OwnerUser } from "../data/ownerTypes";
 import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
 import { useListings } from "./ListingsContext";
+import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
 
 const emptyOwnerUser: OwnerUser = {
   fullName: "",
@@ -57,11 +58,13 @@ interface OwnerContextValue {
   isOwnerAuthenticated: boolean;
   authLoading: boolean;
   mfaPending: boolean;
+  mfaPhone: string;
   ownerId: string | null;
   ownerUser: OwnerUser;
   draft: ListingDraft;
   signup: (email: string, password: string, meta: { fullName: string; phone: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  completeMfaChallenge: () => Promise<void>;
   logout: () => Promise<void>;
   updateOwnerUser: (patch: Partial<OwnerUser>) => void;
   updateDraft: (patch: Partial<ListingDraft>) => void;
@@ -76,6 +79,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [isOwnerAuthenticated, setIsOwnerAuthenticated] = useState(false);
   const [mfaPending, setMfaPending] = useState(false);
+  const [mfaPhone, setMfaPhone] = useState("");
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [ownerUser, setOwnerUser] = useState<OwnerUser>(emptyOwnerUser);
   const { submitListing } = useListings();
@@ -83,6 +88,28 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
   }, [local]);
+
+  const applyAuthenticatedUser = (userId: string, profile: ProfileRow) => {
+    setAuthUserId(userId);
+    setOwnerUser(profileToOwnerUser(profile));
+    setIsOwnerAuthenticated(true);
+    setMfaPending(false);
+    setPendingUserId(null);
+    setMfaPhone("");
+  };
+
+  // Decides, from an already-fetched "proprietaire" profile, whether the
+  // custom SMS 2FA challenge (via Twilio Verify) is still owed for this
+  // browser session before granting owner access.
+  const finalizeAuth = (userId: string, profile: ProfileRow) => {
+    if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {
+      setPendingUserId(userId);
+      setMfaPhone(profile.phone);
+      setMfaPending(true);
+      return;
+    }
+    applyAuthenticatedUser(userId, profile);
+  };
 
   useEffect(() => {
     let active = true;
@@ -94,6 +121,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
         setMfaPending(false);
+        setMfaPhone("");
+        setPendingUserId(null);
         setAuthLoading(false);
         return;
       }
@@ -107,22 +136,12 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
         setOwnerUser(emptyOwnerUser);
         setIsOwnerAuthenticated(false);
         setMfaPending(false);
+        setMfaPhone("");
+        setPendingUserId(null);
         setAuthLoading(false);
         return;
       }
-      // An owner account can have SMS 2FA enrolled — a fresh sign-in only
-      // reaches AAL1, and full access must wait for the second factor.
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!active) return;
-      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-        setMfaPending(true);
-        setAuthLoading(false);
-        return;
-      }
-      setAuthUserId(session.user.id);
-      setOwnerUser(profileToOwnerUser(profile));
-      setIsOwnerAuthenticated(true);
-      setMfaPending(false);
+      finalizeAuth(session.user.id, profile);
       setAuthLoading(false);
     };
 
@@ -140,6 +159,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signup = async (email: string, password: string, meta: { fullName: string; phone: string }) => {
@@ -161,13 +181,11 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       );
     }
     const profile = await fetchProfile(data.user.id);
-    // No MFA factor exists yet on a brand-new account, so this always
-    // resolves at AAL1/AAL1 — the caller drives the mandatory phone
+    if (!profile) throw new Error("Erreur lors de la création du compte, réessayez.");
+    // A brand-new account never has phone_verified set yet, so this always
+    // goes straight through — the caller drives the mandatory phone
     // enrollment step (MfaEnrollForm) before treating signup as complete.
-    setAuthUserId(data.user.id);
-    setOwnerUser(profile ? profileToOwnerUser(profile) : emptyOwnerUser);
-    setIsOwnerAuthenticated(true);
-    setMfaPending(false);
+    finalizeAuth(data.user.id, profile);
   };
 
   const login = async (email: string, password: string) => {
@@ -181,15 +199,14 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       // tried the wrong login form.
       throw new Error("Aucun compte propriétaire trouvé avec ces identifiants.");
     }
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      setMfaPending(true);
-      return;
-    }
-    setAuthUserId(authUser.id);
-    setOwnerUser(profileToOwnerUser(profile));
-    setIsOwnerAuthenticated(true);
-    setMfaPending(false);
+    finalizeAuth(authUser.id, profile);
+  };
+
+  const completeMfaChallenge = async () => {
+    if (!pendingUserId) return;
+    markPhoneVerifiedForSession(pendingUserId);
+    const profile = await fetchProfile(pendingUserId);
+    if (profile) applyAuthenticatedUser(pendingUserId, profile);
   };
 
   const logout = async () => {
@@ -234,18 +251,20 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       isOwnerAuthenticated,
       authLoading,
       mfaPending,
+      mfaPhone,
       ownerId: authUserId,
       ownerUser,
       draft: local.draft,
       signup,
       login,
+      completeMfaChallenge,
       logout,
       updateOwnerUser,
       updateDraft,
       resetDraft,
       submitDraft,
     }),
-    [isOwnerAuthenticated, authLoading, mfaPending, ownerUser, local, authUserId],
+    [isOwnerAuthenticated, authLoading, mfaPending, mfaPhone, ownerUser, local, authUserId, pendingUserId],
   );
 
   return <OwnerContext.Provider value={value}>{children}</OwnerContext.Provider>;

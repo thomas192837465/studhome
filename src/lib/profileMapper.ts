@@ -5,6 +5,7 @@ export interface ProfileRow {
   last_name: string;
   email: string | null;
   phone: string;
+  phone_verified: boolean;
   city: string;
   university: string;
   bio: string;

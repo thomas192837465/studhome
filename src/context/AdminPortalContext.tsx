@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
 import type { AdminSession, ActivityLog, PortalRole } from "../data/adminTypes";
 import { seedTransactions } from "../data/adminSeed";
+import { isPhoneVerifiedForSession, markPhoneVerifiedForSession } from "../lib/phoneVerification";
 
 function roleToPortalRole(role: string): PortalRole | null {
   if (role === "admin") return "Admin";
@@ -32,9 +33,11 @@ interface AdminPortalContextValue {
   authLoading: boolean;
   authError: string;
   mfaPending: boolean;
+  mfaPhone: string;
   transactions: typeof seedTransactions;
   logs: ActivityLog[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
+  completeMfaChallenge: () => Promise<void>;
   logout: () => Promise<void>;
   logAction: (action: string, cible?: string, details?: string) => Promise<void>;
 }
@@ -46,7 +49,25 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [mfaPending, setMfaPending] = useState(false);
+  const [mfaPhone, setMfaPhone] = useState("");
+  const [pendingProfile, setPendingProfile] = useState<{ userId: string; session: AdminSession } | null>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+
+  // Decides, from an already-resolved admin/superadmin session, whether the
+  // custom SMS 2FA challenge (via Twilio Verify) is still owed for this
+  // browser session before granting admin access.
+  const finalizeAuth = (userId: string, profile: ProfileRow, nextSession: AdminSession) => {
+    if (profile.phone_verified && !isPhoneVerifiedForSession(userId)) {
+      setPendingProfile({ userId, session: nextSession });
+      setMfaPhone(profile.phone);
+      setMfaPending(true);
+      return;
+    }
+    setSession(nextSession);
+    setMfaPending(false);
+    setPendingProfile(null);
+    setMfaPhone("");
+  };
 
   useEffect(() => {
     let active = true;
@@ -56,6 +77,8 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         setSession(null);
         setMfaPending(false);
+        setMfaPhone("");
+        setPendingProfile(null);
         setAuthLoading(false);
         return;
       }
@@ -65,23 +88,15 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       // admin portal tab is also open — only treat it as admin-authenticated
       // when the profile was actually created with an admin/superadmin role.
       const nextSession = profile ? profileToSession(profile) : null;
-      if (!nextSession) {
+      if (!nextSession || !profile) {
         setSession(null);
         setMfaPending(false);
+        setMfaPhone("");
+        setPendingProfile(null);
         setAuthLoading(false);
         return;
       }
-      // Admin accounts can have SMS 2FA enrolled — a fresh sign-in only
-      // reaches AAL1, and admin access must wait for the second factor.
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!active) return;
-      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-        setMfaPending(true);
-        setAuthLoading(false);
-        return;
-      }
-      setSession(nextSession);
-      setMfaPending(false);
+      finalizeAuth(authSession.user.id, profile, nextSession);
       setAuthLoading(false);
     };
 
@@ -144,17 +159,20 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
     }
     const profile = data.user ? await fetchProfile(data.user.id) : null;
     const nextSession = profile ? profileToSession(profile) : null;
-    if (!nextSession) {
+    if (!nextSession || !profile || !data.user) {
       await supabase.auth.signOut();
       throw new Error("Ce compte n'a pas accès à l'espace administrateur.");
     }
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      setMfaPending(true);
-      return;
-    }
-    setSession(nextSession);
+    finalizeAuth(data.user.id, profile, nextSession);
+  };
+
+  const completeMfaChallenge = async () => {
+    if (!pendingProfile) return;
+    markPhoneVerifiedForSession(pendingProfile.userId);
+    setSession(pendingProfile.session);
     setMfaPending(false);
+    setMfaPhone("");
+    setPendingProfile(null);
   };
 
   const logout = async () => {
@@ -188,13 +206,15 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       authLoading,
       authError,
       mfaPending,
+      mfaPhone,
       transactions: seedTransactions,
       logs,
       loginWithPassword,
+      completeMfaChallenge,
       logout,
       logAction,
     }),
-    [session, authLoading, authError, mfaPending, logs],
+    [session, authLoading, authError, mfaPending, mfaPhone, logs, pendingProfile],
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

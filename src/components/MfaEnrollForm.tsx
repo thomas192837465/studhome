@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { sendVerificationCode, checkVerificationCode, markPhoneVerifiedForSession } from "../lib/phoneVerification";
 
 type Step = "phone" | "code";
 
 // Lets an already-authenticated user turn on SMS-based 2FA from their
-// profile settings. Enrollment doesn't require any particular assurance
-// level — any signed-in user can add a phone factor.
+// profile settings (or complete the mandatory step right after signup).
+// Verifies the number via Twilio Verify directly, then records it on the
+// user's own profile row.
 export function MfaEnrollForm({ onEnrolled, onCancel }: { onEnrolled: () => void; onCancel?: () => void }) {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [factorId, setFactorId] = useState("");
-  const [challengeId, setChallengeId] = useState("");
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
@@ -22,17 +22,7 @@ export function MfaEnrollForm({ onEnrolled, onCancel }: { onEnrolled: () => void
     setError("");
     setSending(true);
     try {
-      const { data: factor, error: enrollError } = await supabase.auth.mfa.enroll({
-        factorType: "phone",
-        phone,
-      });
-      if (enrollError) throw enrollError;
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: factor.id,
-      });
-      if (challengeError) throw challengeError;
-      setFactorId(factor.id);
-      setChallengeId(challenge.id);
+      await sendVerificationCode(phone);
       setStep("code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'envoyer le code. Vérifiez le numéro.");
@@ -46,12 +36,20 @@ export function MfaEnrollForm({ onEnrolled, onCancel }: { onEnrolled: () => void
     setError("");
     setVerifying(true);
     try {
-      const { error: verifyError } = await supabase.auth.mfa.verify({
-        factorId,
-        challengeId,
-        code: code.trim(),
-      });
-      if (verifyError) throw verifyError;
+      const ok = await checkVerificationCode(phone, code.trim());
+      if (!ok) {
+        setError("Code incorrect ou expiré.");
+        return;
+      }
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      if (!userId) throw new Error("Session expirée, reconnectez-vous.");
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ phone, phone_verified: true })
+        .eq("id", userId);
+      if (updateError) throw updateError;
+      markPhoneVerifiedForSession(userId);
       onEnrolled();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Code incorrect ou expiré.");

@@ -29,7 +29,7 @@ export function Login() {
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, mfaPending, signup, login } = useApp();
+  const { isAuthenticated, mfaPending, mfaPhone, signup, login, completeMfaChallenge } = useApp();
 
   // Guarded to the "connexion" tab only: signing up flips isAuthenticated
   // true right away (a brand-new account has no MFA factor yet), but the
@@ -105,7 +105,7 @@ export function Login() {
 
         {mfaPending ? (
           <div className="mt-8">
-            <MfaChallengeForm onVerified={() => {}} />
+            <MfaChallengeForm phone={mfaPhone} onVerified={completeMfaChallenge} />
           </div>
         ) : step === "phone" ? (
           <div className="mt-8 max-w-sm">
