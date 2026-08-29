@@ -6,14 +6,26 @@ import { useApp } from "../context/AppContext";
 export function PaymentCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { buyPack } = useApp();
+  const { buyPack, authLoading, isAuthenticated } = useApp();
   const [failed, setFailed] = useState(false);
   const [errorDetail, setErrorDetail] = useState("");
   const ran = useRef(false);
 
   useEffect(() => {
+    // KoraPay's checkout is a full-page redirect, so this component always
+    // mounts on a fresh page load — the Supabase session hasn't finished
+    // restoring yet at that instant. Calling buyPack() before authLoading
+    // settles would silently no-op (it bails out when authUserId is still
+    // null) and the credits would be lost even though the charge succeeded.
+    if (authLoading) return;
     if (ran.current) return;
     ran.current = true;
+
+    if (!isAuthenticated) {
+      setFailed(true);
+      setErrorDetail("Votre session a expiré. Reconnectez-vous puis contactez le support avec votre référence de paiement.");
+      return;
+    }
 
     // KoraPay redirects back here with "?reference=<ours>" appended verbatim
     // (the reference we generated during initialize), so no extra param
@@ -42,7 +54,7 @@ export function PaymentCallback() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   if (failed) {
     return (
