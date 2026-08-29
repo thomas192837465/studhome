@@ -60,9 +60,7 @@ interface OwnerContextValue {
   ownerId: string | null;
   ownerUser: OwnerUser;
   draft: ListingDraft;
-  sendOtp: (email: string, meta?: { fullName?: string; phone?: string }) => Promise<void>;
-  verifyOtp: (email: string, token: string) => Promise<void>;
-  setPassword: (password: string) => Promise<void>;
+  signup: (email: string, password: string, meta: { fullName: string; phone: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateOwnerUser: (patch: Partial<OwnerUser>) => void;
@@ -144,49 +142,32 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const sendOtp = async (email: string, meta?: { fullName?: string; phone?: string }) => {
-    const [firstName, ...rest] = (meta?.fullName ?? "").trim().split(/\s+/).filter(Boolean);
-    const { error } = await supabase.auth.signInWithOtp({
+  const signup = async (email: string, password: string, meta: { fullName: string; phone: string }) => {
+    const [firstName, ...rest] = meta.fullName.trim().split(/\s+/).filter(Boolean);
+    const { data, error } = await supabase.auth.signUp({
       email,
+      password,
       options: {
-        shouldCreateUser: true,
-        data: { first_name: firstName ?? "", last_name: rest.join(" "), phone: meta?.phone ?? "", role: "proprietaire" },
+        data: { first_name: firstName ?? "", last_name: rest.join(" "), phone: meta.phone, role: "proprietaire" },
       },
     });
     if (error) throw error;
-  };
-
-  const verifyOtp = async (email: string, token: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-    if (error) throw error;
-    const authUser = data.user;
-    if (!authUser) throw new Error("Vérification impossible, réessayez.");
-    const profile = await fetchProfile(authUser.id);
-    if (profile && profile.role !== "proprietaire") {
-      // Don't sign out here — verifying this OTP may have simply re-confirmed
-      // the user's own already-active session (e.g. they tried the owner
-      // signup with their existing student email). Signing out would kill a
-      // perfectly valid session in every open tab for no reason; we just
-      // decline to grant owner access.
-      throw new Error("Cette adresse email est déjà associée à un compte étudiant.");
+    if (!data.session || !data.user) {
+      // Supabase only returns a session immediately when "Confirm email" is
+      // disabled — required here since identity is verified by phone (via
+      // the mandatory 2FA enrollment step right after signup) instead.
+      throw new Error(
+        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone.",
+      );
     }
-    // A signup re-run for an email that already has an account could belong
-    // to one with SMS 2FA already enrolled — route through the same MFA gate
-    // as a normal login rather than granting access unconditionally.
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      setMfaPending(true);
-      return;
-    }
-    setAuthUserId(authUser.id);
+    const profile = await fetchProfile(data.user.id);
+    // No MFA factor exists yet on a brand-new account, so this always
+    // resolves at AAL1/AAL1 — the caller drives the mandatory phone
+    // enrollment step (MfaEnrollForm) before treating signup as complete.
+    setAuthUserId(data.user.id);
     setOwnerUser(profile ? profileToOwnerUser(profile) : emptyOwnerUser);
     setIsOwnerAuthenticated(true);
     setMfaPending(false);
-  };
-
-  const setPassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
   };
 
   const login = async (email: string, password: string) => {
@@ -196,8 +177,8 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
     if (!authUser) throw new Error("Connexion impossible, réessayez.");
     const profile = await fetchProfile(authUser.id);
     if (!profile || profile.role !== "proprietaire") {
-      // Same reasoning as verifyOtp: don't sign out, this could be a valid
-      // student session that just tried the wrong login form.
+      // Don't sign out — this could be a valid student session that just
+      // tried the wrong login form.
       throw new Error("Aucun compte propriétaire trouvé avec ces identifiants.");
     }
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -256,9 +237,7 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       ownerId: authUserId,
       ownerUser,
       draft: local.draft,
-      sendOtp,
-      verifyOtp,
-      setPassword,
+      signup,
       login,
       logout,
       updateOwnerUser,

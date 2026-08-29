@@ -54,9 +54,7 @@ interface AppContextValue {
   favorites: string[];
   unlockedListings: string[];
   transactions: Transaction[];
-  sendOtp: (email: string, meta?: { firstName?: string; lastName?: string }) => Promise<void>;
-  verifyOtp: (email: string, token: string) => Promise<void>;
-  setPassword: (password: string) => Promise<void>;
+  signup: (email: string, password: string, meta: { firstName: string; lastName: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
@@ -149,17 +147,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const sendOtp = async (email: string, meta?: { firstName?: string; lastName?: string }) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        data: { first_name: meta?.firstName ?? "", last_name: meta?.lastName ?? "", role: "etudiant" },
-      },
-    });
-    if (error) throw error;
-  };
-
   // A signup re-run for an email that already has an account (e.g. a returning
   // user who mistakenly went through "Créer un compte" again) could belong to
   // an account with SMS 2FA already enrolled — route through the same MFA
@@ -173,17 +160,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await applyAuthenticatedUser(userId);
   };
 
-  const verifyOtp = async (email: string, token: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  const signup = async (email: string, password: string, meta: { firstName: string; lastName: string }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { first_name: meta.firstName, last_name: meta.lastName, role: "etudiant" } },
+    });
     if (error) throw error;
-    const authUser = data.user;
-    if (!authUser) throw new Error("Vérification impossible, réessayez.");
-    await finalizeIfNoMfa(authUser.id);
-  };
-
-  const setPassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
+    if (!data.session || !data.user) {
+      // Supabase only returns a session immediately when "Confirm email" is
+      // disabled — required here since identity is verified by phone (via
+      // the mandatory 2FA enrollment step right after signup) instead.
+      throw new Error(
+        "La confirmation par email est encore activée côté Supabase (Authentication > Sign In / Providers > Email). Désactivez-la pour une inscription uniquement par téléphone.",
+      );
+    }
+    // No MFA factor exists yet on a brand-new account, so this always
+    // resolves at AAL1/AAL1 — the caller drives the mandatory phone
+    // enrollment step (MfaEnrollForm) before treating signup as complete.
+    await applyAuthenticatedUser(data.user.id);
   };
 
   const login = async (email: string, password: string) => {
@@ -266,9 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       favorites,
       unlockedListings,
       transactions,
-      sendOtp,
-      verifyOtp,
-      setPassword,
+      signup,
       login,
       logout,
       updateUser,
