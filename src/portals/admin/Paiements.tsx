@@ -15,9 +15,8 @@ export function Paiements() {
         </div>
         <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
           <option>Tous les modes</option>
-          <option>Mobile Money (MTN)</option>
-          <option>Orange Money</option>
-          <option>WebMoney</option>
+          <option>KoraPay</option>
+          <option>CinetPay</option>
         </select>
       </div>
 
@@ -45,8 +44,7 @@ export function Paiements() {
             {transactions.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
-                  Aucune transaction pour l'instant — cet écran s'activera une fois le paiement réel branché
-                  (CinetPay).
+                  Aucune transaction pour l'instant.
                 </td>
               </tr>
             )}

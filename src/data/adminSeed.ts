@@ -1,8 +1,6 @@
-import type { AdminTransaction, ActivityLog } from "./adminTypes";
+import type { ActivityLog } from "./adminTypes";
 
-// No real data sources exist yet for these (no real payment processing, no
-// persisted audit log) — kept empty rather than showing fabricated examples.
-// Each page renders an honest empty state instead.
-export const seedTransactions: AdminTransaction[] = [];
+// No real data source exists yet for this — kept empty rather than showing
+// fabricated examples. The page renders an honest empty state instead.
 export const seedLogs: ActivityLog[] = [];
 export const activitesRecentes: { text: string; date: string }[] = [];

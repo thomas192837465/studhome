@@ -668,3 +668,31 @@ alter table public.email_verifications enable row level security;
 -- No policies defined on purpose: only the service-role key (used by
 -- api/email/*.js) can read or write this table — same rationale as
 -- phone_verifications above.
+
+-- ============================================================================
+-- Migration 12: record which payment gateway/channel a credit purchase went
+-- through (KoraPay or CinetPay), so the admin Paiements screen can show a
+-- real "Mode de paiement" column instead of a blank/placeholder one.
+-- ============================================================================
+
+alter table public.credit_transactions add column if not exists payment_method text not null default 'KoraPay';
+
+-- Dropped and recreated (rather than a plain create-or-replace) because the
+-- new p_payment_method parameter changes the function's signature — leaving
+-- the old 3-arg version in place would make Supabase's named-parameter RPC
+-- calls ambiguous between the two overloads.
+drop function if exists public.buy_credits(integer, numeric, text);
+
+create or replace function public.buy_credits(p_credits integer, p_amount numeric, p_pack_name text, p_payment_method text default 'KoraPay')
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.profiles set credits = credits + p_credits where id = auth.uid();
+  insert into public.credit_transactions (user_id, type, description, credits, amount, status, payment_method)
+  values (auth.uid(), 'Achat', p_pack_name || ' - ' || p_credits || ' crédits', p_credits, p_amount, 'Terminé', p_payment_method);
+end;
+$$;
+
+grant execute on function public.buy_credits(integer, numeric, text, text) to authenticated;

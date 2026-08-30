@@ -12,11 +12,12 @@ export function PaymentCallback() {
   const ran = useRef(false);
 
   useEffect(() => {
-    // KoraPay's checkout is a full-page redirect, so this component always
-    // mounts on a fresh page load — the Supabase session hasn't finished
-    // restoring yet at that instant. Calling buyPack() before authLoading
-    // settles would silently no-op (it bails out when authUserId is still
-    // null) and the credits would be lost even though the charge succeeded.
+    // Both providers' checkouts are full-page redirects, so this component
+    // always mounts on a fresh page load — the Supabase session hasn't
+    // finished restoring yet at that instant. Calling buyPack() before
+    // authLoading settles would silently no-op (it bails out when
+    // authUserId is still null) and the credits would be lost even though
+    // the charge succeeded.
     if (authLoading) return;
     if (ran.current) return;
     ran.current = true;
@@ -28,8 +29,13 @@ export function PaymentCallback() {
     }
 
     // KoraPay redirects back here with "?reference=<ours>" appended verbatim
-    // (the reference we generated during initialize), so no extra param
-    // juggling is needed to disambiguate it from a provider-side id.
+    // (the reference we generated during initialize) on top of the
+    // "provider" param we put in the redirect_url ourselves. CinetPay never
+    // echoes our reference back, so we embedded it in return_url ourselves
+    // too — both end up readable the same way here. Missing "provider"
+    // means an older/bookmarked KoraPay link, so default to it.
+    const provider = params.get("provider") || "korapay";
+    const providerLabel = provider === "cinetpay" ? "CinetPay" : "KoraPay";
     const reference = params.get("reference");
     if (!reference) {
       setFailed(true);
@@ -39,10 +45,10 @@ export function PaymentCallback() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/korapay/verify?reference=${encodeURIComponent(reference)}`);
+        const res = await fetch(`/api/${provider}/verify?reference=${encodeURIComponent(reference)}`);
         const data = await res.json();
         if (data.success) {
-          await buyPack(data.credits, data.price, data.packName);
+          await buyPack(data.credits, data.price, data.packName, providerLabel);
           navigate(`/credits/succes?pack=${data.packId}`, { replace: true });
         } else {
           setFailed(true);

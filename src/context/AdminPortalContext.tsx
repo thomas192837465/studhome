@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import type { ProfileRow } from "../lib/profileMapper";
-import type { AdminSession, ActivityLog, PortalRole } from "../data/adminTypes";
-import { seedTransactions } from "../data/adminSeed";
+import type { AdminSession, ActivityLog, AdminTransaction, PortalRole } from "../data/adminTypes";
 import { isTwoFactorVerifiedForSession, markTwoFactorVerifiedForSession, type TwoFactorMethod } from "../lib/twoFactor";
 
 function roleToPortalRole(role: string): PortalRole | null {
@@ -35,7 +34,7 @@ interface AdminPortalContextValue {
   mfaPending: boolean;
   mfaMethod: TwoFactorMethod | null;
   mfaIdentifier: string;
-  transactions: typeof seedTransactions;
+  transactions: AdminTransaction[];
   logs: ActivityLog[];
   loginWithPassword: (email: string, password: string) => Promise<void>;
   completeMfaChallenge: () => Promise<void>;
@@ -54,6 +53,7 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
   const [mfaIdentifier, setMfaIdentifier] = useState("");
   const [pendingProfile, setPendingProfile] = useState<{ userId: string; session: AdminSession } | null>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
 
   // Decides, from an already-resolved admin/superadmin session, whether the
   // custom 2FA challenge (SMS or email, via our own endpoints) is still owed
@@ -157,6 +157,63 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
     };
   }, [session]);
 
+  useEffect(() => {
+    if (!session) {
+      setTransactions([]);
+      return;
+    }
+
+    const fetchTransactions = async () => {
+      const { data: rows } = await supabase
+        .from("credit_transactions")
+        .select("id, user_id, description, amount, payment_method, status, created_at")
+        .eq("type", "Achat")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (!rows || rows.length === 0) {
+        setTransactions([]);
+        return;
+      }
+
+      // credit_transactions.user_id references auth.users, not public.profiles
+      // directly, so PostgREST can't embed the join — fetch the profiles for
+      // the involved users separately and merge client-side.
+      const userIds = [...new Set(rows.map((r) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .in("id", userIds);
+      const nameById = new Map(
+        (profiles ?? []).map((p) => [p.id, `${p.first_name} ${p.last_name}`.trim() || p.email || "Utilisateur"]),
+      );
+
+      setTransactions(
+        rows.map((row) => ({
+          id: row.id,
+          date: new Date(row.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+          utilisateur: nameById.get(row.user_id) ?? "Utilisateur",
+          pack: row.description,
+          mode: row.payment_method,
+          montant: row.amount,
+          statut: row.status === "Terminé" ? "Réussi" : "Échoué",
+        })),
+      );
+    };
+
+    fetchTransactions();
+
+    const channel = supabase
+      .channel("credit-transactions-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "credit_transactions" }, () => {
+        fetchTransactions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
   const loginWithPassword = async (email: string, password: string) => {
     setAuthError("");
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -215,14 +272,14 @@ export function AdminPortalProvider({ children }: { children: ReactNode }) {
       mfaPending,
       mfaMethod,
       mfaIdentifier,
-      transactions: seedTransactions,
+      transactions,
       logs,
       loginWithPassword,
       completeMfaChallenge,
       logout,
       logAction,
     }),
-    [session, authLoading, authError, mfaPending, mfaMethod, mfaIdentifier, logs, pendingProfile],
+    [session, authLoading, authError, mfaPending, mfaMethod, mfaIdentifier, transactions, logs, pendingProfile],
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

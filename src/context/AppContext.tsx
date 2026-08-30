@@ -71,7 +71,7 @@ interface AppContextValue {
   isFavorite: (id: string) => boolean;
   isUnlocked: (id: string) => boolean;
   unlockListing: (id: string, cost: number, label: string) => Promise<boolean>;
-  buyPack: (credits: number, price: number, packName: string) => Promise<void>;
+  buyPack: (credits: number, price: number, packName: string, paymentMethod?: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -270,12 +270,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const buyPack = async (creditsAmount: number, price: number, packName: string) => {
+  const buyPack = async (creditsAmount: number, price: number, packName: string, paymentMethod = "KoraPay") => {
     if (!authUserId) return;
     const { error } = await supabase.rpc("buy_credits", {
       p_credits: creditsAmount,
       p_amount: price,
       p_pack_name: packName,
+      p_payment_method: paymentMethod,
     });
     if (error) throw error;
     setCredits((c) => c + creditsAmount);
