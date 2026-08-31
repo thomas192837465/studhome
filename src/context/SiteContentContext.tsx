@@ -13,14 +13,22 @@ export interface HeroPhoto {
   position: number;
 }
 
+export interface CityGridSlot {
+  id: string;
+  city: string;
+  photoUrl: string;
+  position: number;
+}
+
 interface SiteContentContextValue {
-  cityPhotos: Record<string, string>;
+  cityGrid: CityGridSlot[];
   featuredListingIds: string[];
   siteStats: SiteStat[];
   heroPhotos: HeroPhoto[];
   loading: boolean;
-  setCityPhoto: (city: string, photoUrl: string) => Promise<void>;
-  removeCityPhoto: (city: string) => Promise<void>;
+  setCityGridCity: (position: number, city: string) => Promise<void>;
+  setCityGridPhoto: (position: number, photoUrl: string) => Promise<void>;
+  removeCityGridSlot: (position: number) => Promise<void>;
   isFeatured: (listingId: string) => boolean;
   toggleFeatured: (listingId: string) => Promise<void>;
   moveFeatured: (listingId: string, direction: "up" | "down") => Promise<void>;
@@ -33,7 +41,7 @@ interface SiteContentContextValue {
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
 
 export function SiteContentProvider({ children }: { children: ReactNode }) {
-  const [cityPhotos, setCityPhotos] = useState<Record<string, string>>({});
+  const [cityGrid, setCityGrid] = useState<CityGridSlot[]>([]);
   const [featured, setFeatured] = useState<{ id: string; listingId: string; position: number }[]>([]);
   const [siteStats, setSiteStats] = useState<SiteStat[]>([]);
   const [heroPhotos, setHeroPhotos] = useState<HeroPhoto[]>([]);
@@ -41,14 +49,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
   const fetchAll = async () => {
     const [cityRes, featuredRes, statsRes, heroRes] = await Promise.all([
-      supabase.from("city_photos").select("*"),
+      supabase.from("city_photos").select("*").order("position", { ascending: true }),
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
       supabase.from("hero_photos").select("*").order("position", { ascending: true }),
     ]);
-    const cityMap: Record<string, string> = {};
-    for (const row of cityRes.data ?? []) cityMap[row.city] = row.photo_url;
-    setCityPhotos(cityMap);
+    setCityGrid(
+      (cityRes.data ?? []).map((r) => ({ id: r.id, city: r.city, photoUrl: r.photo_url ?? "", position: r.position })),
+    );
     setFeatured((featuredRes.data ?? []).map((r) => ({ id: r.id, listingId: r.listing_id, position: r.position })));
     setSiteStats((statsRes.data ?? []) as SiteStat[]);
     setHeroPhotos((heroRes.data ?? []).map((r) => ({ id: r.id, url: r.photo_url, position: r.position })));
@@ -72,16 +80,27 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setCityPhoto = async (city: string, photoUrl: string) => {
-    const { error } = await supabase
-      .from("city_photos")
-      .upsert({ city, photo_url: photoUrl, updated_at: new Date().toISOString() });
+  const setCityGridCity = async (position: number, city: string) => {
+    const existing = cityGrid.find((s) => s.position === position);
+    const { error } = existing
+      ? await supabase.from("city_photos").update({ city }).eq("id", existing.id)
+      : await supabase.from("city_photos").insert({ city, photo_url: "", position });
     if (error) throw error;
     await fetchAll();
   };
 
-  const removeCityPhoto = async (city: string) => {
-    await supabase.from("city_photos").delete().eq("city", city);
+  const setCityGridPhoto = async (position: number, photoUrl: string) => {
+    const existing = cityGrid.find((s) => s.position === position);
+    if (!existing) return;
+    const { error } = await supabase.from("city_photos").update({ photo_url: photoUrl }).eq("id", existing.id);
+    if (error) throw error;
+    await fetchAll();
+  };
+
+  const removeCityGridSlot = async (position: number) => {
+    const existing = cityGrid.find((s) => s.position === position);
+    if (!existing) return;
+    await supabase.from("city_photos").delete().eq("id", existing.id);
     await fetchAll();
   };
 
@@ -148,13 +167,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SiteContentContextValue>(
     () => ({
-      cityPhotos,
+      cityGrid: [...cityGrid].sort((a, b) => a.position - b.position),
       featuredListingIds: [...featured].sort((a, b) => a.position - b.position).map((f) => f.listingId),
       siteStats,
       heroPhotos: [...heroPhotos].sort((a, b) => a.position - b.position),
       loading,
-      setCityPhoto,
-      removeCityPhoto,
+      setCityGridCity,
+      setCityGridPhoto,
+      removeCityGridSlot,
       isFeatured,
       toggleFeatured,
       moveFeatured,
@@ -163,7 +183,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       removeHeroPhoto,
       moveHeroPhoto,
     }),
-    [cityPhotos, featured, siteStats, heroPhotos, loading],
+    [cityGrid, featured, siteStats, heroPhotos, loading],
   );
 
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;

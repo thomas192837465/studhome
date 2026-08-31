@@ -111,7 +111,8 @@ export function Home() {
   const [universite, setUniversite] = useState("");
   const { getPublicListings } = useListings();
   const publicListings = getPublicListings();
-  const { cityPhotos, featuredListingIds, siteStats, heroPhotos } = useSiteContent();
+  const { cityGrid, featuredListingIds, siteStats, heroPhotos } = useSiteContent();
+  const filledCitySlots = cityGrid.filter((s) => s.city);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
 
@@ -225,28 +226,25 @@ export function Home() {
       {/* Cities */}
       <section className="mx-auto max-w-5xl px-6 mt-16">
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-          {cities.map((city) => {
-            const photo = cityPhotos[city];
-            return (
-              <button
-                key={city}
-                onClick={() => navigate(`/logements?ville=${encodeURIComponent(city)}`)}
-                className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-brand-blue-light to-gray-100 flex items-end p-2 hover:opacity-90 transition-opacity"
-              >
-                {photo ? (
-                  <img src={photo} alt={city} className="absolute inset-0 h-full w-full object-cover" />
-                ) : (
-                  <FontAwesomeIcon
-                    icon={faBuilding}
-                    className="absolute inset-0 m-auto h-7 w-7 text-brand-blue/30"
-                  />
-                )}
-                <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
-                  {city}
-                </span>
-              </button>
-            );
-          })}
+          {filledCitySlots.map((slot) => (
+            <button
+              key={slot.id}
+              onClick={() => navigate(`/logements?ville=${encodeURIComponent(slot.city)}`)}
+              className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-brand-blue-light to-gray-100 flex items-end p-2 hover:opacity-90 transition-opacity"
+            >
+              {slot.photoUrl ? (
+                <img src={slot.photoUrl} alt={slot.city} className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <FontAwesomeIcon
+                  icon={faBuilding}
+                  className="absolute inset-0 m-auto h-7 w-7 text-brand-blue/30"
+                />
+              )}
+              <span className="relative w-full rounded-md bg-brand-orange py-1 text-center text-xs font-semibold text-white">
+                {slot.city}
+              </span>
+            </button>
+          ))}
         </div>
         <div className="mt-6 flex justify-center">
           <Link

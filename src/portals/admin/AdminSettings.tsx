@@ -7,13 +7,14 @@ import { uploadCityPhoto, uploadHeroPhoto } from "../../lib/uploadPhoto";
 import { cameroonCities } from "../../data/cameroonLocations";
 import { MfaSecuritySection } from "../../components/MfaSecuritySection";
 
-const gridCities = cameroonCities.slice(0, 10);
+const GRID_SIZE = 10;
 
 export function AdminSettings() {
   const {
-    cityPhotos,
-    setCityPhoto,
-    removeCityPhoto,
+    cityGrid,
+    setCityGridCity,
+    setCityGridPhoto,
+    removeCityGridSlot,
     featuredListingIds,
     isFeatured,
     toggleFeatured,
@@ -27,19 +28,21 @@ export function AdminSettings() {
   } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
-  const [uploadingCity, setUploadingCity] = useState<string | null>(null);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [uploadingHero, setUploadingHero] = useState(false);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCityPhotoChange = async (city: string, file: File) => {
-    setUploadingCity(city);
+  const citySlots = Array.from({ length: GRID_SIZE }, (_, i) => cityGrid.find((s) => s.position === i));
+
+  const handleCityPhotoChange = async (position: number, city: string, file: File) => {
+    setUploadingSlot(position);
     try {
       const resized = await resizeImageFile(file, 1200, 0.85);
       const url = await uploadCityPhoto(resized, city);
-      await setCityPhoto(city, url);
+      await setCityGridPhoto(position, url);
     } finally {
-      setUploadingCity(null);
+      setUploadingSlot(null);
     }
   };
 
@@ -129,51 +132,73 @@ export function AdminSettings() {
 
       <section>
         <h2 className="font-semibold text-brand-navy mb-1">Photos des villes</h2>
-        <p className="text-sm text-gray-500 mb-4">Une photo par ville pour la grille de la page d'accueil.</p>
+        <p className="text-sm text-gray-500 mb-4">
+          Choisissez la ville et la photo de chacune des {GRID_SIZE} cases de la grille affichée sur la page d'accueil.
+        </p>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          {gridCities.map((city) => (
-            <div key={city} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100">
-              {cityPhotos[city] ? (
-                <img src={cityPhotos[city]} alt={city} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-gray-300">Aucune photo</div>
-              )}
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  type="button"
-                  onClick={() => fileInputRefs.current[city]?.click()}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-navy"
-                >
-                  <Camera size={14} />
-                </button>
-                {cityPhotos[city] && (
+          {citySlots.map((slot, i) => {
+            const city = slot?.city ?? "";
+            const photoUrl = slot?.photoUrl ?? "";
+            return (
+              <div key={i} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                {photoUrl ? (
+                  <img src={photoUrl} alt={city} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center px-2 text-center text-xs text-gray-300">
+                    {city ? "Aucune photo" : "Case vide"}
+                  </div>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     type="button"
-                    onClick={() => removeCityPhoto(city)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-red-500"
+                    disabled={!city}
+                    onClick={() => fileInputRefs.current[i]?.click()}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-navy disabled:opacity-40"
+                    title={city ? "Changer la photo" : "Choisissez d'abord une ville"}
                   >
-                    <Trash2 size={14} />
+                    <Camera size={14} />
                   </button>
-                )}
+                  {(photoUrl || city) && (
+                    <button
+                      type="button"
+                      onClick={() => removeCityGridSlot(i)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-red-500"
+                      title="Vider cette case"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={(el) => {
+                    fileInputRefs.current[i] = el;
+                  }}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && city) handleCityPhotoChange(i, city, file);
+                    e.target.value = "";
+                  }}
+                />
+                <select
+                  value={city}
+                  onChange={(e) => setCityGridCity(i, e.target.value)}
+                  className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/70 px-1.5 py-1 text-center text-[10px] font-medium text-white focus:outline-none"
+                >
+                  <option value="" className="text-black">
+                    {uploadingSlot === i ? "Envoi..." : "Choisir une ville"}
+                  </option>
+                  {cameroonCities.map((c) => (
+                    <option key={c} value={c} className="text-black">
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <input
-                ref={(el) => {
-                  fileInputRefs.current[city] = el;
-                }}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleCityPhotoChange(city, file);
-                  e.target.value = "";
-                }}
-              />
-              <span className="absolute bottom-1 left-1 right-1 truncate rounded bg-black/60 px-1.5 py-0.5 text-center text-[10px] font-medium text-white">
-                {uploadingCity === city ? "Envoi..." : city}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

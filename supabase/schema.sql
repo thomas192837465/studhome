@@ -696,3 +696,51 @@ end;
 $$;
 
 grant execute on function public.buy_credits(integer, numeric, text, text) to authenticated;
+
+-- ============================================================================
+-- Migration 13: city_photos becomes 10 independently orderable grid slots
+-- (id + position + editable city name) instead of one row per fixed city
+-- name — the admin can now put any city in any slot, not just upload a
+-- photo for a hardcoded list. Also switches it to admin-gated RLS now that
+-- real admin accounts exist (Migration 8), matching hero_photos.
+-- ============================================================================
+
+alter table public.city_photos add column if not exists id uuid default gen_random_uuid();
+alter table public.city_photos add column if not exists position integer;
+-- a slot can now exist with just a city chosen, before a photo is uploaded
+alter table public.city_photos alter column photo_url set default '';
+alter table public.city_photos alter column photo_url drop not null;
+update public.city_photos set photo_url = '' where photo_url is null;
+
+update public.city_photos set position = sub.rn - 1
+from (
+  select city, row_number() over (order by updated_at) as rn from public.city_photos
+) sub
+where public.city_photos.city = sub.city and public.city_photos.position is null;
+
+alter table public.city_photos alter column position set default 0;
+update public.city_photos set position = 0 where position is null;
+alter table public.city_photos alter column position set not null;
+alter table public.city_photos alter column id set not null;
+
+alter table public.city_photos drop constraint if exists city_photos_pkey;
+alter table public.city_photos add primary key (id);
+
+create index if not exists city_photos_position_idx on public.city_photos (position);
+
+drop policy if exists "city_photos_select_all_temp" on public.city_photos;
+drop policy if exists "city_photos_write_all_temp" on public.city_photos;
+drop policy if exists "city_photos_delete_all_temp" on public.city_photos;
+drop policy if exists "city_photos_read" on public.city_photos;
+drop policy if exists "city_photos_admin_insert" on public.city_photos;
+drop policy if exists "city_photos_admin_update" on public.city_photos;
+drop policy if exists "city_photos_admin_delete" on public.city_photos;
+
+create policy "city_photos_read" on public.city_photos
+  for select using (true);
+create policy "city_photos_admin_insert" on public.city_photos
+  for insert with check (public.is_admin());
+create policy "city_photos_admin_update" on public.city_photos
+  for update using (public.is_admin());
+create policy "city_photos_admin_delete" on public.city_photos
+  for delete using (public.is_admin());
