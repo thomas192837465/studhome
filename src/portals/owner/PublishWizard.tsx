@@ -135,6 +135,14 @@ export function PublishWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, editingListing]);
 
+  const addUniversityFromInput = (v: string) => {
+    if (v && !draft.universities.includes(v)) {
+      updateDraft({ universities: [...draft.universities, v] });
+      if (!universitesOptions.some((u) => u.toLowerCase() === v.toLowerCase())) proposeUniversity(v);
+    }
+    setUniInput("");
+  };
+
   const handleUseCurrentLocation = async () => {
     setLocating(true);
     setLocationError("");
@@ -426,23 +434,29 @@ export function PublishWizard() {
                     </button>
                   </span>
                 ))}
-                <Autocomplete
-                  value={uniInput}
-                  onChange={setUniInput}
-                  options={universitesOptions.filter((u) => !draft.universities.includes(u))}
-                  onSelect={(v) => {
-                    if (v && !draft.universities.includes(v)) {
-                      updateDraft({ universities: [...draft.universities, v] });
-                      if (!universitesOptions.some((u) => u.toLowerCase() === v.toLowerCase())) proposeUniversity(v);
-                    }
-                    setUniInput("");
-                  }}
-                  placeholder="+ Ajouter une université"
-                  className="flex-1 min-w-[140px] text-sm focus:outline-none"
-                />
+                <div className="flex flex-1 min-w-[160px] items-center gap-1.5">
+                  <Autocomplete
+                    value={uniInput}
+                    onChange={setUniInput}
+                    options={universitesOptions.filter((u) => !draft.universities.includes(u))}
+                    onSelect={addUniversityFromInput}
+                    placeholder="+ Ajouter une université"
+                    className="flex-1 min-w-0 text-sm focus:outline-none"
+                  />
+                  {uniInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => addUniversityFromInput(uniInput.trim())}
+                      className="shrink-0 rounded-full bg-brand-blue px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-blue-dark"
+                    >
+                      Ajouter
+                    </button>
+                  )}
+                </div>
               </div>
               <span className="mt-1 block text-xs text-gray-400">
-                Université absente de la liste ? Tapez son nom puis Entrée — elle sera ajoutée après validation.
+                Université absente de la liste ? Tapez son nom puis cliquez sur "Ajouter" — elle sera ajoutée après
+                validation.
               </span>
             </label>
 

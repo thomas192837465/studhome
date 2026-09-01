@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, MapPin } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MapPin, Check, X } from "lucide-react";
 import { useListings } from "../../context/ListingsContext";
 import { useAdminPortal } from "../../context/AdminPortalContext";
+import { useSiteContent } from "../../context/SiteContentContext";
 import { useBasePath } from "./adminUi";
 import { listingStatusClass } from "../../data/listingStatus";
 import { notifyListingStatus } from "../../lib/notify";
@@ -38,6 +39,8 @@ export function AnnonceVerification() {
   const navigate = useNavigate();
   const { getListing, publishListing, refuseListing, updateListingLocation } = useListings();
   const { logAction } = useAdminPortal();
+  const { pendingCities, pendingUniversities, approveCity, rejectCity, approveUniversity, rejectUniversity } =
+    useSiteContent();
   const listing = id ? getListing(id) : undefined;
 
   const [lat, setLat] = useState("");
@@ -66,6 +69,10 @@ export function AnnonceVerification() {
   }
 
   const hasCoords = listing.latitude != null && listing.longitude != null;
+  const listingPendingCity = pendingCities.find((c) => c.toLowerCase() === listing.city.toLowerCase());
+  const listingPendingUniversities = listing.universities.filter((u) =>
+    pendingUniversities.some((p) => p.toLowerCase() === u.toLowerCase()),
+  );
 
   const checks = [
     listing.gallery.length > 0,
@@ -163,6 +170,58 @@ export function AnnonceVerification() {
           </p>
           {listing.address && <p className="text-sm text-gray-500">{listing.address}</p>}
           <p className="text-sm text-gray-500">Université(s) : {listing.universities.join(", ") || "—"}</p>
+
+          {(listingPendingCity || listingPendingUniversities.length > 0) && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+              <p className="mb-2 text-xs font-semibold text-amber-800">
+                Ville/université proposée par le propriétaire — à valider
+              </p>
+              <div className="space-y-1.5">
+                {listingPendingCity && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
+                    <span className="text-brand-navy">Ville : {listingPendingCity}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => approveCity(listingPendingCity)}
+                        className="flex items-center gap-1 rounded-md bg-brand-green-light px-2 py-1 font-semibold text-green-700 hover:bg-green-100"
+                      >
+                        <Check size={11} /> Valider
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => rejectCity(listingPendingCity)}
+                        className="flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 font-semibold text-red-600 hover:bg-red-100"
+                      >
+                        <X size={11} /> Refuser
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {listingPendingUniversities.map((u) => (
+                  <div key={u} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
+                    <span className="text-brand-navy">Université : {u}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => approveUniversity(u)}
+                        className="flex items-center gap-1 rounded-md bg-brand-green-light px-2 py-1 font-semibold text-green-700 hover:bg-green-100"
+                      >
+                        <Check size={11} /> Valider
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => rejectUniversity(u)}
+                        className="flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 font-semibold text-red-600 hover:bg-red-100"
+                      >
+                        <X size={11} /> Refuser
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 rounded-xl border border-gray-100 p-4">
             <h3 className="flex items-center gap-1.5 font-semibold text-brand-navy text-sm mb-1.5">
