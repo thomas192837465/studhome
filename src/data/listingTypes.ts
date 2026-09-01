@@ -47,6 +47,7 @@ export interface Listing {
 }
 
 export interface ListingDraft {
+  title: string;
   type: string;
   ville: string;
   quartier: string;
@@ -65,6 +66,7 @@ export interface ListingDraft {
 }
 
 export const emptyDraft: ListingDraft = {
+  title: "",
   type: "",
   ville: "",
   quartier: "",

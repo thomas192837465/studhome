@@ -5,7 +5,8 @@ import {
   Building2,
   Building,
   Users2,
-  Warehouse,
+  Sofa,
+  PackageOpen,
   UploadCloud,
   X,
   Info,
@@ -28,7 +29,6 @@ import { getCurrentPosition, reverseGeocode } from "../../lib/geolocation";
 import { Autocomplete } from "../../components/Autocomplete";
 import { useSiteContent } from "../../context/SiteContentContext";
 import type { ListingDraft } from "../../data/listingTypes";
-import { quartiersByVille } from "../../data/cameroonLocations";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
@@ -40,8 +40,9 @@ const typeOptions = [
   { id: "Chambre", icon: Bed, desc: "Chambre simple avec accès aux espaces communs" },
   { id: "Studio", icon: Building2, desc: "Studio autonome avec cuisine et salle d'eau" },
   { id: "Appartement", icon: Building, desc: "Appartement complet (2 pièces et plus)" },
-  { id: "Résidence étudiante", icon: Warehouse, desc: "Chambres en résidence sécurisée" },
   { id: "Colocation", icon: Users2, desc: "Chambre en colocation (plusieurs occupants)" },
+  { id: "Meublé", icon: Sofa, desc: "Logement équipé de meubles, prêt à vivre" },
+  { id: "Non meublé", icon: PackageOpen, desc: "Logement sans mobilier" },
 ];
 
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
@@ -74,6 +75,7 @@ export function PublishWizard() {
     if (editId) {
       if (!editingListing) return; // wait for listings to load
       const asDraft: ListingDraft = {
+        title: editingListing.title,
         type: editingListing.type,
         ville: editingListing.city,
         quartier: editingListing.quartier,
@@ -246,7 +248,21 @@ export function PublishWizard() {
           <div>
             <h2 className="font-display text-xl font-bold text-brand-navy">Informations sur le logement</h2>
             <p className="mt-1 text-sm text-gray-500">Renseignez les détails de votre logement.</p>
+
             <label className="block mt-6 max-w-sm">
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Nom du logement *</span>
+              <input
+                value={draft.title}
+                onChange={(e) => updateDraft({ title: e.target.value })}
+                placeholder="Ex : Résidence Saint-Luc"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+              <span className="mt-1 block text-xs text-gray-400">
+                C'est le nom qui apparaîtra comme titre de votre annonce.
+              </span>
+            </label>
+
+            <label className="block mt-4 max-w-sm">
               <span className="mb-1.5 block text-sm font-medium text-brand-navy">Ville *</span>
               <Autocomplete
                 value={draft.ville}
@@ -338,20 +354,6 @@ export function PublishWizard() {
                     Pas de problème ! Vous pouvez continuer à publier votre logement. Un agent StudHome vous
                     contactera prochainement afin de confirmer avec vous la localisation exacte du logement.
                   </p>
-                  <label className="block max-w-sm">
-                    <span className="mb-1.5 block text-sm font-medium text-brand-navy">Quartier (approximatif) *</span>
-                    <select
-                      value={draft.quartier}
-                      onChange={(e) => updateDraft({ quartier: e.target.value })}
-                      disabled={!draft.ville}
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30 disabled:bg-gray-50"
-                    >
-                      <option value="">Sélectionner</option>
-                      {(quartiersByVille[draft.ville] ?? []).map((q) => (
-                        <option key={q}>{q}</option>
-                      ))}
-                    </select>
-                  </label>
                   <label className="block">
                     <span className="mb-1.5 block text-sm font-medium text-brand-navy">Détails complémentaires (optionnel)</span>
                     <input
@@ -644,7 +646,7 @@ export function PublishWizard() {
               <MapPin className="text-brand-blue shrink-0" />
               <div className="text-sm">
                 <p className="font-semibold text-brand-navy">
-                  {draft.ville || "Ville"}, {draft.quartier || "Quartier"}
+                  {[draft.ville, draft.quartier].filter(Boolean).join(", ") || "Ville"}
                 </p>
                 <p className="text-gray-500">{draft.universities.join(", ") || "Aucune université sélectionnée"}</p>
               </div>
@@ -687,13 +689,13 @@ export function PublishWizard() {
               </div>
               <div>
                 <h3 className="font-display text-lg font-bold text-brand-navy">
-                  {draft.type || "Logement"} meublé{draft.quartier ? ` à ${draft.quartier}` : ""}
+                  {draft.title || "Nom du logement"}
                 </h3>
                 <p className="mt-1 text-xl font-bold text-brand-blue">
                   {draft.loyer || "0"} FCFA <span className="text-sm font-normal text-gray-500">/ an</span>
                 </p>
                 <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
-                  <MapPin size={14} /> {draft.ville || "Ville"}, {draft.quartier || "Quartier"}
+                  <MapPin size={14} /> {[draft.ville, draft.quartier].filter(Boolean).join(", ") || "Ville"}
                 </p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
                   <GraduationCap size={14} /> {draft.universities.join(", ") || "—"}
@@ -746,12 +748,9 @@ export function PublishWizard() {
                   step === 1
                     ? !draft.type
                     : step === 2
-                      ? !draft.ville ||
-                        (locationMode === "gps"
-                          ? draft.latitude == null
-                          : locationMode === "manual"
-                            ? !draft.quartier
-                            : true)
+                      ? !draft.title ||
+                        !draft.ville ||
+                        (locationMode === "gps" ? draft.latitude == null : locationMode !== "manual")
                       : step === 3
                         ? draft.photos.length === 0
                         : false

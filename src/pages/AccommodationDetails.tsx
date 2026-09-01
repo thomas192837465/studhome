@@ -60,7 +60,7 @@ export function AccommodationDetails() {
   const navigate = useNavigate();
   const { getListing, getListingsByOwner, recordView, adjustFavorite, recordUnlock } = useListings();
   const listing = id ? getListing(id) : undefined;
-  const { isAuthenticated, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
+  const { isAuthenticated, authLoading, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
   const { getPublishedForListing, submitReview } = useReviews();
   const { submitSignalement } = useSignalements();
   const [activeImg, setActiveImg] = useState(0);
@@ -83,6 +83,16 @@ export function AccommodationDetails() {
     if (id) recordView(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/connexion?tab=inscription", { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
+  if (authLoading || !isAuthenticated) {
+    return null;
+  }
 
   if (!listing) {
     return (

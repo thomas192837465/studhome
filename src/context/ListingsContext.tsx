@@ -84,7 +84,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("listings")
       .insert({
-        title: `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
+        title: draft.title || `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
         type: draft.type,
         city: draft.ville,
         quartier: draft.quartier,
@@ -127,7 +127,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase
       .from("listings")
       .update({
-        title: `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
+        title: draft.title || `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
         type: draft.type,
         city: draft.ville,
         quartier: draft.quartier,

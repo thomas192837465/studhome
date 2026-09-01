@@ -8,7 +8,7 @@ import { useSiteContent } from "../context/SiteContentContext";
 import { ListingCard } from "../components/ListingCard";
 import { Autocomplete } from "../components/Autocomplete";
 
-const typeOptions = ["Chambre", "Studio", "Appartement", "Résidence étudiante", "Colocation"] as const;
+const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation", "Meublé", "Non meublé"] as const;
 
 type SortKey = "recent" | "asc" | "desc";
 

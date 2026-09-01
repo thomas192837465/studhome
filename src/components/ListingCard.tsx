@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Heart } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGraduationCap } from "@fortawesome/free-solid-svg-icons";
@@ -11,13 +12,16 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const { isFavorite, toggleFavorite, isAuthenticated } = useApp();
   const { adjustFavorite } = useListings();
   const fav = isFavorite(listing.id);
+  const gallery = listing.gallery.length > 0 ? listing.gallery : listing.image ? [listing.image] : [];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const activePhoto = gallery[photoIndex] ?? listing.image;
 
   return (
     <div className="group rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <Link to={`/logements/${listing.id}`} className="block relative aspect-[4/3] overflow-hidden bg-gray-100">
-        {listing.image ? (
+        {activePhoto ? (
           <WatermarkedImage
-            src={listing.image}
+            src={activePhoto}
             alt={listing.title}
             className="h-full w-full"
             imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -40,6 +44,24 @@ export function ListingCard({ listing }: { listing: Listing }) {
             className={fav ? "fill-brand-blue text-brand-blue" : "text-brand-blue"}
           />
         </button>
+        {gallery.length > 1 && (
+          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur-sm">
+            {gallery.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setPhotoIndex(i);
+                }}
+                aria-label={`Photo ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === photoIndex ? "w-4 bg-white" : "w-1.5 bg-white/60"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </Link>
       <Link to={`/logements/${listing.id}`} className="block px-4 py-4">
         <h3 className="font-semibold text-brand-navy">{listing.title}</h3>
