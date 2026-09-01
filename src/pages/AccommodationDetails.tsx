@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, X, GraduationCap, Play } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, Check, Info, X, GraduationCap, Play } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faCircleCheck, faStar as faStarSolid, faFlag } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
@@ -437,33 +437,13 @@ export function AccommodationDetails() {
                   : `Caution : ${listing.cautionMonths || "1 mois"} en plus du loyer annuel`}
             </p>
 
-            <button
-              onClick={handleUnlock}
-              disabled={unlocked}
-              className={`mt-5 w-full rounded-xl py-3 font-semibold text-center transition-colors ${
-                unlocked
-                  ? "bg-brand-green-light text-green-700 cursor-default"
-                  : "bg-brand-blue text-white hover:bg-brand-blue-dark"
-              }`}
-            >
-              {unlocked ? (
-                <>
-                  Propriétaire débloqué <FontAwesomeIcon icon={faCircleCheck} className="h-3.5 w-3.5" />
-                </>
-              ) : (
-                <>
-                  Contacter le propriétaire
-                  <span className="block text-xs font-normal opacity-90">Coût : {listing.unlockCost} crédits</span>
-                </>
-              )}
-            </button>
-            {!unlocked && isAuthenticated && credits < listing.unlockCost && (
-              <p className="mt-2 text-center text-xs text-red-500">
-                Crédits insuffisants —{" "}
-                <Link to="/credits/achat" className="underline font-medium">
-                  acheter des crédits
-                </Link>
-              </p>
+            {unlocked && (
+              <button
+                disabled
+                className="mt-5 w-full cursor-default rounded-xl bg-brand-green-light py-3 font-semibold text-center text-green-700"
+              >
+                Propriétaire débloqué <FontAwesomeIcon icon={faCircleCheck} className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
 
@@ -555,19 +535,54 @@ export function AccommodationDetails() {
           </div>
 
           {!unlocked && (
-            <div className="rounded-2xl bg-brand-orange-light border border-brand-orange/20 p-5 text-center">
-              <p className="font-display font-bold text-brand-navy">Débloquez l'annonce complète</p>
-              <p className="mt-1 text-xs text-gray-500">
-                Accédez au numéro du propriétaire et à la localisation exacte sur la carte.
-              </p>
-              <p className="mt-3 text-sm text-gray-600">
-                Vous disposez actuellement de <span className="font-semibold">{credits}</span> crédits.
-              </p>
-              {isAuthenticated && credits < listing.unlockCost && (
-                <Link to="/credits/achat" className="mt-1 inline-block text-sm font-semibold text-brand-orange-dark underline">
-                  Acheter des crédits
-                </Link>
-              )}
+            <div className="rounded-2xl bg-brand-orange-light border border-brand-orange/20 overflow-hidden">
+              <div className="p-5 text-center">
+                <h3 className="font-display text-lg font-bold text-brand-orange-dark leading-snug">
+                  Débloquez l'annonce complète
+                </h3>
+                <p className="mt-1.5 text-xs text-gray-500 max-w-[230px] mx-auto">
+                  Accédez au numéro du propriétaire et à la localisation exacte sur la carte.
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <ul className="space-y-1.5 text-left text-sm text-gray-700">
+                    <li className="flex items-center gap-1.5">
+                      <Check size={14} strokeWidth={3} className="text-brand-orange shrink-0" /> Numéro de téléphone
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Check size={14} strokeWidth={3} className="text-brand-orange shrink-0" /> WhatsApp
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Check size={14} strokeWidth={3} className="text-brand-orange shrink-0" /> Localisation GPS
+                    </li>
+                  </ul>
+                  <div className="shrink-0 text-center">
+                    <p className="font-display text-2xl font-bold text-brand-orange leading-none">
+                      {listing.unlockCost}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">crédits</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleUnlock}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange py-3 font-semibold text-white hover:bg-brand-orange-dark transition-colors"
+                >
+                  <Lock size={15} /> Débloquez l'annonce
+                </button>
+              </div>
+              <div className="border-t border-brand-orange/20 bg-white/60 px-5 py-3 text-xs text-gray-500">
+                <p className="flex items-center gap-1.5">
+                  <Info size={13} className="shrink-0 text-gray-400" /> Vous disposez actuellement de{" "}
+                  <span className="font-semibold text-brand-orange">{credits}</span> crédits
+                </p>
+                {isAuthenticated && credits < listing.unlockCost && (
+                  <p className="mt-1 font-semibold text-brand-navy">
+                    Besoin de plus de crédits ?{" "}
+                    <Link to="/credits/achat" className="font-semibold text-brand-orange underline">
+                      Acheter des crédits
+                    </Link>
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
