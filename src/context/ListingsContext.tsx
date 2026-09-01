@@ -101,9 +101,11 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         video_url: draft.video || null,
         status: "En attente",
         unlock_cost: unlockCost,
+        caution_type: draft.cautionType,
+        caution_months: draft.cautionType === "non_incluse" ? draft.caution : null,
         owner_id: owner.id,
         owner_name: owner.name,
-        owner_phone: owner.phone,
+        owner_phone: draft.contactPhone || owner.phone,
         owner_email: owner.email ?? null,
         owner_avatar_img: owner.avatarImg ?? null,
         owner_member_since: owner.memberSince,
@@ -144,6 +146,9 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         status: "En attente",
         modification_message: null,
         modification_reason: null,
+        caution_type: draft.cautionType,
+        caution_months: draft.cautionType === "non_incluse" ? draft.caution : null,
+        owner_phone: draft.contactPhone || undefined,
       })
       .eq("id", id);
 

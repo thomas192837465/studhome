@@ -27,6 +27,8 @@ interface SiteContentContextValue {
   heroPhotos: HeroPhoto[];
   universities: string[];
   cities: string[];
+  pendingUniversities: string[];
+  pendingCities: string[];
   loading: boolean;
   setCityGridCity: (position: number, city: string) => Promise<void>;
   setCityGridPhoto: (position: number, photoUrl: string) => Promise<void>;
@@ -42,6 +44,12 @@ interface SiteContentContextValue {
   removeUniversity: (name: string) => Promise<void>;
   addCity: (name: string) => Promise<void>;
   removeCity: (name: string) => Promise<void>;
+  proposeUniversity: (name: string) => Promise<void>;
+  proposeCity: (name: string) => Promise<void>;
+  approveUniversity: (name: string) => Promise<void>;
+  rejectUniversity: (name: string) => Promise<void>;
+  approveCity: (name: string) => Promise<void>;
+  rejectCity: (name: string) => Promise<void>;
 }
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -53,6 +61,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [heroPhotos, setHeroPhotos] = useState<HeroPhoto[]>([]);
   const [universities, setUniversities] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
+  const [pendingUniversities, setPendingUniversities] = useState<string[]>([]);
+  const [pendingCities, setPendingCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
@@ -61,8 +71,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
       supabase.from("hero_photos").select("*").order("position", { ascending: true }),
-      supabase.from("universities").select("name").order("name", { ascending: true }),
-      supabase.from("cities").select("name").order("name", { ascending: true }),
+      supabase.from("universities").select("name, status").order("name", { ascending: true }),
+      supabase.from("cities").select("name, status").order("name", { ascending: true }),
     ]);
     setCityGrid(
       (cityRes.data ?? []).map((r) => ({ id: r.id, city: r.city, photoUrl: r.photo_url ?? "", position: r.position })),
@@ -70,8 +80,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     setFeatured((featuredRes.data ?? []).map((r) => ({ id: r.id, listingId: r.listing_id, position: r.position })));
     setSiteStats((statsRes.data ?? []) as SiteStat[]);
     setHeroPhotos((heroRes.data ?? []).map((r) => ({ id: r.id, url: r.photo_url, position: r.position })));
-    setUniversities((universitiesRes.data ?? []).map((r) => r.name));
-    setCities((citiesRes.data ?? []).map((r) => r.name));
+    const uniRows = (universitiesRes.data ?? []) as { name: string; status: string }[];
+    const cityRows = (citiesRes.data ?? []) as { name: string; status: string }[];
+    setUniversities(uniRows.filter((r) => r.status !== "pending").map((r) => r.name));
+    setCities(cityRows.filter((r) => r.status !== "pending").map((r) => r.name));
+    setPendingUniversities(uniRows.filter((r) => r.status === "pending").map((r) => r.name));
+    setPendingCities(cityRows.filter((r) => r.status === "pending").map((r) => r.name));
     setLoading(false);
   };
 
@@ -197,6 +211,44 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
+  // Called by owners typing a city/university that isn't in the approved
+  // list yet — inserted as "pending" via an RPC (rather than a direct
+  // insert) since regular users don't have insert rights on these tables,
+  // only the security-definer function does.
+  const proposeUniversity = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await supabase.rpc("propose_university", { p_name: trimmed });
+    await fetchAll();
+  };
+
+  const proposeCity = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await supabase.rpc("propose_city", { p_name: trimmed });
+    await fetchAll();
+  };
+
+  const approveUniversity = async (name: string) => {
+    await supabase.from("universities").update({ status: "approved" }).eq("name", name);
+    await fetchAll();
+  };
+
+  const rejectUniversity = async (name: string) => {
+    await supabase.from("universities").delete().eq("name", name);
+    await fetchAll();
+  };
+
+  const approveCity = async (name: string) => {
+    await supabase.from("cities").update({ status: "approved" }).eq("name", name);
+    await fetchAll();
+  };
+
+  const rejectCity = async (name: string) => {
+    await supabase.from("cities").delete().eq("name", name);
+    await fetchAll();
+  };
+
   const updateStat = async (key: string, value: string, label: string) => {
     const { error } = await supabase
       .from("site_stats")
@@ -213,6 +265,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       heroPhotos: [...heroPhotos].sort((a, b) => a.position - b.position),
       universities,
       cities,
+      pendingUniversities,
+      pendingCities,
       loading,
       setCityGridCity,
       setCityGridPhoto,
@@ -228,8 +282,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       removeUniversity,
       addCity,
       removeCity,
+      proposeUniversity,
+      proposeCity,
+      approveUniversity,
+      rejectUniversity,
+      approveCity,
+      rejectCity,
     }),
-    [cityGrid, featured, siteStats, heroPhotos, universities, cities, loading],
+    [cityGrid, featured, siteStats, heroPhotos, universities, cities, pendingUniversities, pendingCities, loading],
   );
 
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;

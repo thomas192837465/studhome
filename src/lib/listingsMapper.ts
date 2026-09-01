@@ -30,6 +30,8 @@ export interface ListingRow {
   owner_member_since: string;
   modification_message: string | null;
   modification_reason: string | null;
+  caution_type: string | null;
+  caution_months: string | null;
   views: number;
   favorites_count: number;
   unlocks_count: number;
@@ -67,6 +69,8 @@ export function rowToListing(row: ListingRow): Listing {
     ownerMemberSince: row.owner_member_since,
     modificationMessage: row.modification_message ?? undefined,
     modificationReason: row.modification_reason ?? undefined,
+    cautionType: (row.caution_type as Listing["cautionType"]) ?? "non_incluse",
+    cautionMonths: row.caution_months ?? undefined,
     views: row.views,
     favoritesCount: row.favorites_count,
     unlocksCount: row.unlocks_count,

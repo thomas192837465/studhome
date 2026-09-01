@@ -429,6 +429,14 @@ export function AccommodationDetails() {
               </ul>
             )}
 
+            <p className="mt-3 text-sm text-gray-500">
+              {listing.cautionType === "incluse"
+                ? "Caution incluse dans le loyer annuel"
+                : listing.cautionType === "aucune"
+                  ? "Aucune caution demandée"
+                  : `Caution : ${listing.cautionMonths || "1 mois"} en plus du loyer annuel`}
+            </p>
+
             <button
               onClick={handleUnlock}
               disabled={unlocked}

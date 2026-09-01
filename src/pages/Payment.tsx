@@ -4,17 +4,10 @@ import { Lock, ArrowLeft } from "lucide-react";
 import { creditPacks, paymentMethods } from "../data/creditPacks";
 import { useApp } from "../context/AppContext";
 
-const PROVIDERS = [
-  { id: "korapay", label: "KoraPay" },
-  { id: "cinetpay", label: "CinetPay" },
-] as const;
-type Provider = (typeof PROVIDERS)[number]["id"];
-
 export function Payment() {
   const [params] = useSearchParams();
   const { user } = useApp();
   const [method, setMethod] = useState<string>("mtn");
-  const [provider, setProvider] = useState<Provider>("korapay");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,7 +18,7 @@ export function Payment() {
     setProcessing(true);
     setError("");
     try {
-      const res = await fetch(`/api/${provider}/initialize`, {
+      const res = await fetch("/api/korapay/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,31 +62,8 @@ export function Payment() {
           </div>
         </div>
 
-        <h2 className="text-sm font-semibold text-gray-500 mb-2">Choisissez votre prestataire de paiement</h2>
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {PROVIDERS.map((p) => (
-            <label
-              key={p.id}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
-                provider === p.id ? "border-brand-blue bg-brand-blue-light" : "border-gray-200"
-              }`}
-            >
-              <input
-                type="radio"
-                name="provider"
-                checked={provider === p.id}
-                onChange={() => setProvider(p.id)}
-                className="accent-brand-blue h-4 w-4"
-              />
-              <span className="font-semibold text-brand-navy text-sm">{p.label}</span>
-            </label>
-          ))}
-        </div>
-
         <h2 className="text-sm font-semibold text-gray-500 mb-1">Choisissez votre méthode de paiement</h2>
-        <p className="text-xs text-gray-400 mb-3">
-          Vous confirmerez le paiement sur la page sécurisée {PROVIDERS.find((p) => p.id === provider)?.label}.
-        </p>
+        <p className="text-xs text-gray-400 mb-3">Vous confirmerez le paiement sur une page sécurisée.</p>
         <div className="space-y-3 mb-6">
           {paymentMethods.map((m) => (
             <label

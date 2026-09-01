@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, GraduationCap, MapPin } from "lucide-react";
+import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, GraduationCap, MapPin, Check, X } from "lucide-react";
 import { useSiteContent, type SiteStat } from "../../context/SiteContentContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
@@ -30,6 +30,12 @@ export function AdminSettings() {
     cities: cameroonCities,
     addCity,
     removeCity,
+    pendingUniversities,
+    pendingCities,
+    approveUniversity,
+    rejectUniversity,
+    approveCity,
+    rejectCity,
   } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
@@ -338,6 +344,38 @@ export function AdminSettings() {
             <Plus size={15} /> Ajouter
           </button>
         </form>
+        {pendingUniversities.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="mb-2.5 text-sm font-semibold text-amber-800">
+              En attente de validation ({pendingUniversities.length})
+            </p>
+            <div className="space-y-2">
+              {pendingUniversities.map((u) => (
+                <div key={u} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                  <span className="flex items-center gap-1.5 text-brand-navy">
+                    <GraduationCap size={13} className="text-amber-600 shrink-0" /> {u}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => approveUniversity(u)}
+                      className="flex items-center gap-1 rounded-lg bg-brand-green-light px-2.5 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"
+                    >
+                      <Check size={12} /> Approuver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rejectUniversity(u)}
+                      className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
+                    >
+                      <X size={12} /> Refuser
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {universities.map((u) => (
             <span
@@ -380,6 +418,38 @@ export function AdminSettings() {
             <Plus size={15} /> Ajouter
           </button>
         </form>
+        {pendingCities.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="mb-2.5 text-sm font-semibold text-amber-800">
+              En attente de validation ({pendingCities.length})
+            </p>
+            <div className="space-y-2">
+              {pendingCities.map((c) => (
+                <div key={c} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                  <span className="flex items-center gap-1.5 text-brand-navy">
+                    <MapPin size={13} className="text-amber-600 shrink-0" /> {c}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => approveCity(c)}
+                      className="flex items-center gap-1 rounded-lg bg-brand-green-light px-2.5 py-1 text-xs font-semibold text-green-700 hover:bg-green-100"
+                    >
+                      <Check size={12} /> Approuver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rejectCity(c)}
+                      className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
+                    >
+                      <X size={12} /> Refuser
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {cameroonCities.map((c) => (
             <span

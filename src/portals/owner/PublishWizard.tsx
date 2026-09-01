@@ -14,6 +14,10 @@ import {
   LocateFixed,
   Loader2,
   CheckCircle2,
+  Circle,
+  ShieldCheck,
+  BadgeCheck,
+  MinusCircle,
   GraduationCap,
   Video,
   Film,
@@ -27,6 +31,7 @@ import { getVideoDuration } from "../../lib/validateVideo";
 import { uploadListingVideo } from "../../lib/uploadPhoto";
 import { getCurrentPosition, reverseGeocode } from "../../lib/geolocation";
 import { Autocomplete } from "../../components/Autocomplete";
+import { CameroonFlag } from "../../components/CameroonFlag";
 import { useSiteContent } from "../../context/SiteContentContext";
 import type { ListingDraft } from "../../data/listingTypes";
 
@@ -47,11 +52,32 @@ const typeOptions = [
 
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
 
+const cautionTypeOptions = [
+  {
+    id: "non_incluse" as const,
+    icon: ShieldCheck,
+    label: "Non, la caution n'est pas incluse",
+    desc: "Les étudiants devront payer une caution en plus du loyer annuel.",
+  },
+  {
+    id: "incluse" as const,
+    icon: BadgeCheck,
+    label: "Oui, la caution est incluse",
+    desc: "La caution est déjà comprise dans le loyer annuel.",
+  },
+  {
+    id: "aucune" as const,
+    icon: MinusCircle,
+    label: "Pas de caution demandée",
+    desc: "Vous ne demandez pas de dépôt de garantie.",
+  },
+];
+
 export function PublishWizard() {
   const { id: editId } = useParams();
-  const { ownerId, draft, updateDraft, submitDraft, resetDraft } = useOwner();
+  const { ownerId, ownerUser, draft, updateDraft, submitDraft, resetDraft } = useOwner();
   const { getListing, updateListing } = useListings();
-  const { universities: universitesOptions, cities: villes } = useSiteContent();
+  const { universities: universitesOptions, cities: villes, proposeCity, proposeUniversity } = useSiteContent();
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -89,8 +115,10 @@ export function PublishWizard() {
         video: editingListing.videoUrl || "",
         loyer: String(editingListing.price || ""),
         charges: [],
-        caution: "1 mois",
+        cautionType: editingListing.cautionType,
+        caution: editingListing.cautionMonths || "1 mois",
         disponibleDate: "",
+        contactPhone: editingListing.ownerPhone,
       };
       updateDraft(asDraft);
       if (editingListing.latitude != null && editingListing.longitude != null) {
@@ -101,6 +129,7 @@ export function PublishWizard() {
       }
     } else {
       resetDraft();
+      updateDraft({ contactPhone: ownerUser.phone });
     }
     initialized.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,9 +297,16 @@ export function PublishWizard() {
                 value={draft.ville}
                 onChange={(v) => updateDraft({ ville: v, quartier: "" })}
                 options={villes}
+                onBlur={() => {
+                  const v = draft.ville.trim();
+                  if (v && !villes.some((c) => c.toLowerCase() === v.toLowerCase())) proposeCity(v);
+                }}
                 placeholder="Ex : Yaoundé"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
               />
+              <span className="mt-1 block text-xs text-gray-400">
+                Votre ville n'est pas dans la liste ? Écrivez-la, elle sera ajoutée après validation par notre équipe.
+              </span>
             </label>
 
             <div className="mt-5">
@@ -395,13 +431,19 @@ export function PublishWizard() {
                   onChange={setUniInput}
                   options={universitesOptions.filter((u) => !draft.universities.includes(u))}
                   onSelect={(v) => {
-                    if (v && !draft.universities.includes(v)) updateDraft({ universities: [...draft.universities, v] });
+                    if (v && !draft.universities.includes(v)) {
+                      updateDraft({ universities: [...draft.universities, v] });
+                      if (!universitesOptions.some((u) => u.toLowerCase() === v.toLowerCase())) proposeUniversity(v);
+                    }
                     setUniInput("");
                   }}
                   placeholder="+ Ajouter une université"
                   className="flex-1 min-w-[140px] text-sm focus:outline-none"
                 />
               </div>
+              <span className="mt-1 block text-xs text-gray-400">
+                Université absente de la liste ? Tapez son nom puis Entrée — elle sera ajoutée après validation.
+              </span>
             </label>
 
             <label className="block mt-4">
@@ -610,29 +652,70 @@ export function PublishWizard() {
               </div>
             </div>
 
-            <div className="mt-4 grid sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Caution (mois)</span>
-                <select
-                  value={draft.caution}
-                  onChange={(e) => updateDraft({ caution: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none"
-                >
-                  <option>1 mois</option>
-                  <option>2 mois</option>
-                  <option>3 mois</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Disponible à partir du</span>
-                <input
-                  type="date"
-                  value={draft.disponibleDate}
-                  onChange={(e) => updateDraft({ disponibleDate: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none"
-                />
-              </label>
+            <div className="mt-5">
+              <span className="mb-2 flex items-center gap-1.5 text-sm font-medium text-brand-navy">
+                Caution (dépôt de garantie) <Info size={13} className="text-gray-400" />
+              </span>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {cautionTypeOptions.map((opt) => {
+                  const selected = draft.cautionType === opt.id;
+                  return (
+                    <button
+                      type="button"
+                      key={opt.id}
+                      onClick={() => updateDraft({ cautionType: opt.id })}
+                      className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                        selected ? "border-brand-blue bg-brand-blue-light/30" : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {selected ? (
+                          <CheckCircle2 size={16} className="text-brand-blue shrink-0" />
+                        ) : (
+                          <Circle size={16} className="text-gray-300 shrink-0" />
+                        )}
+                        <opt.icon size={15} className="text-brand-blue shrink-0" />
+                        <span className="text-sm font-semibold text-brand-navy">{opt.label}</span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-500">{opt.desc}</p>
+
+                      {opt.id === "non_incluse" && selected && (
+                        <div className="mt-3 border-t border-brand-blue/20 pt-3" onClick={(e) => e.stopPropagation()}>
+                          <span className="mb-1 block text-xs font-semibold text-brand-navy">
+                            Caution de combien de mois ?
+                          </span>
+                          <select
+                            value={draft.caution}
+                            onChange={(e) => updateDraft({ caution: e.target.value })}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm focus:outline-none"
+                          >
+                            <option>1 mois</option>
+                            <option>2 mois</option>
+                            <option>3 mois</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {opt.id === "incluse" && (
+                        <div className="mt-3 rounded-lg bg-brand-blue-light px-3 py-2 text-xs text-blue-800">
+                          À ce que verront les étudiants : <span className="font-semibold">Caution incluse</span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <label className="block mt-5 max-w-sm">
+              <span className="mb-1.5 block text-sm font-medium text-brand-navy">Disponible à partir du</span>
+              <input
+                type="date"
+                value={draft.disponibleDate}
+                onChange={(e) => updateDraft({ disponibleDate: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none"
+              />
+            </label>
           </div>
         )}
 
@@ -651,11 +734,24 @@ export function PublishWizard() {
                 <p className="text-gray-500">{draft.universities.join(", ") || "Aucune université sélectionnée"}</p>
               </div>
             </div>
-            <div className="mt-3 rounded-xl border border-gray-100 p-5 flex items-center gap-4">
-              <GraduationCap className="text-brand-blue shrink-0" />
-              <p className="text-sm text-gray-600">
-                Votre numéro WhatsApp vérifié sera utilisé pour que les étudiants vous contactent directement.
-              </p>
+            <div className="mt-3 rounded-xl border border-gray-100 p-5">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Confirmez votre numéro WhatsApp *</span>
+                <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-3 focus-within:ring-2 focus-within:ring-brand-blue/30">
+                  <CameroonFlag className="h-3.5 w-5 rounded-sm shrink-0" />
+                  <input
+                    value={draft.contactPhone}
+                    onChange={(e) => updateDraft({ contactPhone: e.target.value })}
+                    type="tel"
+                    placeholder="+237 6XX XXX XXX"
+                    className="w-full text-sm focus:outline-none"
+                  />
+                </div>
+                <span className="mt-1.5 block text-xs text-gray-400">
+                  C'est ce numéro que les étudiants utiliseront pour vous contacter sur WhatsApp au sujet de cette
+                  annonce — modifiez-le si vous souhaitez en utiliser un autre.
+                </span>
+              </label>
             </div>
           </div>
         )}
@@ -753,7 +849,9 @@ export function PublishWizard() {
                         (locationMode === "gps" ? draft.latitude == null : locationMode !== "manual")
                       : step === 3
                         ? draft.photos.length === 0
-                        : false
+                        : step === 5
+                          ? !draft.contactPhone.trim()
+                          : false
                 }
                 className="rounded-xl bg-brand-blue px-6 py-2.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >

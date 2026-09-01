@@ -39,6 +39,9 @@ export interface Listing {
   modificationMessage?: string;
   modificationReason?: string;
 
+  cautionType: "non_incluse" | "incluse" | "aucune";
+  cautionMonths?: string;
+
   views: number;
   favoritesCount: number;
   unlocksCount: number;
@@ -61,8 +64,10 @@ export interface ListingDraft {
   video: string;
   loyer: string;
   charges: string[];
+  cautionType: "non_incluse" | "incluse" | "aucune";
   caution: string;
   disponibleDate: string;
+  contactPhone: string;
 }
 
 export const emptyDraft: ListingDraft = {
@@ -80,8 +85,10 @@ export const emptyDraft: ListingDraft = {
   video: "",
   loyer: "",
   charges: [],
+  cautionType: "non_incluse",
   caution: "1 mois",
   disponibleDate: "",
+  contactPhone: "",
 };
 
 export function todayISO() {

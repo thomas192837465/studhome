@@ -7,6 +7,7 @@ export function Autocomplete({
   placeholder,
   className,
   onSelect,
+  onBlur,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -14,6 +15,7 @@ export function Autocomplete({
   placeholder?: string;
   className?: string;
   onSelect?: (v: string) => void;
+  onBlur?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -55,13 +57,15 @@ export function Autocomplete({
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setHighlight((h) => Math.max(h - 1, 0));
-          } else if (e.key === "Enter" && filtered[highlight]) {
+          } else if (e.key === "Enter") {
             e.preventDefault();
-            choose(filtered[highlight]);
+            if (filtered[highlight]) choose(filtered[highlight]);
+            else if (value.trim()) choose(value.trim());
           } else if (e.key === "Escape") {
             setOpen(false);
           }
         }}
+        onBlur={() => onBlur?.()}
         placeholder={placeholder}
         autoComplete="off"
         className={className}
