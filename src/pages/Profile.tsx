@@ -4,14 +4,15 @@ import { User as UserIcon, Camera } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { useApp } from "../context/AppContext";
+import { useSiteContent } from "../context/SiteContentContext";
 import { Avatar } from "../components/Avatar";
 import { resizeImageFile } from "../lib/resizeImage";
-import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
 import { Autocomplete } from "../components/Autocomplete";
 import { MfaSecuritySection } from "../components/MfaSecuritySection";
 
 export function Profile() {
   const { isAuthenticated, authLoading, user, credits, updateUser } = useApp();
+  const { universities: cameroonUniversities, cities: cameroonCities } = useSiteContent();
   const [form, setForm] = useState(user);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

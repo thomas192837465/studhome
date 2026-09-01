@@ -1,10 +1,9 @@
 import { useRef, useState } from "react";
-import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud } from "lucide-react";
+import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, GraduationCap, MapPin } from "lucide-react";
 import { useSiteContent, type SiteStat } from "../../context/SiteContentContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
 import { uploadCityPhoto, uploadHeroPhoto } from "../../lib/uploadPhoto";
-import { cameroonCities } from "../../data/cameroonLocations";
 import { MfaSecuritySection } from "../../components/MfaSecuritySection";
 
 const GRID_SIZE = 10;
@@ -25,6 +24,12 @@ export function AdminSettings() {
     addHeroPhoto,
     removeHeroPhoto,
     moveHeroPhoto,
+    universities,
+    addUniversity,
+    removeUniversity,
+    cities: cameroonCities,
+    addCity,
+    removeCity,
   } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
@@ -32,6 +37,34 @@ export function AdminSettings() {
   const [uploadingHero, setUploadingHero] = useState(false);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const [newUniversity, setNewUniversity] = useState("");
+  const [addingUniversity, setAddingUniversity] = useState(false);
+  const [newCity, setNewCity] = useState("");
+  const [addingCity, setAddingCity] = useState(false);
+
+  const handleAddUniversity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUniversity.trim()) return;
+    setAddingUniversity(true);
+    try {
+      await addUniversity(newUniversity);
+      setNewUniversity("");
+    } finally {
+      setAddingUniversity(false);
+    }
+  };
+
+  const handleAddCity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCity.trim()) return;
+    setAddingCity(true);
+    try {
+      await addCity(newCity);
+      setNewCity("");
+    } finally {
+      setAddingCity(false);
+    }
+  };
 
   const citySlots = Array.from({ length: GRID_SIZE }, (_, i) => cityGrid.find((s) => s.position === i));
 
@@ -280,6 +313,90 @@ export function AdminSettings() {
         <div className="grid gap-4 sm:grid-cols-3">
           {siteStats.map((stat) => (
             <StatEditor key={stat.key} stat={stat} onSave={updateStat} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-semibold text-brand-navy mb-1">Universités</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          La liste ci-dessous complète automatiquement tous les champs "Université" du site (recherche, profil
+          étudiant, questionnaire propriétaire).
+        </p>
+        <form onSubmit={handleAddUniversity} className="flex gap-2 mb-4 max-w-md">
+          <input
+            value={newUniversity}
+            onChange={(e) => setNewUniversity(e.target.value)}
+            placeholder="Ex : Université de Buea"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          <button
+            type="submit"
+            disabled={addingUniversity || !newUniversity.trim()}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+          >
+            <Plus size={15} /> Ajouter
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {universities.map((u) => (
+            <span
+              key={u}
+              className="flex items-center gap-1.5 rounded-full bg-brand-blue-light px-3 py-1.5 text-xs font-medium text-brand-blue"
+            >
+              <GraduationCap size={13} />
+              {u}
+              <button
+                type="button"
+                onClick={() => removeUniversity(u)}
+                className="ml-0.5 text-brand-blue/60 hover:text-red-500"
+                title="Supprimer"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-semibold text-brand-navy mb-1">Villes</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          La liste ci-dessous complète automatiquement tous les champs "Ville" du site (recherche, profil étudiant,
+          questionnaire propriétaire, cases de la grille ci-dessus).
+        </p>
+        <form onSubmit={handleAddCity} className="flex gap-2 mb-4 max-w-md">
+          <input
+            value={newCity}
+            onChange={(e) => setNewCity(e.target.value)}
+            placeholder="Ex : Bafang"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          <button
+            type="submit"
+            disabled={addingCity || !newCity.trim()}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+          >
+            <Plus size={15} /> Ajouter
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {cameroonCities.map((c) => (
+            <span
+              key={c}
+              className="flex items-center gap-1.5 rounded-full bg-brand-orange-light px-3 py-1.5 text-xs font-medium text-brand-orange-dark"
+            >
+              <MapPin size={13} />
+              {c}
+              <button
+                type="button"
+                onClick={() => removeCity(c)}
+                className="ml-0.5 text-brand-orange-dark/60 hover:text-red-500"
+                title="Supprimer"
+              >
+                ×
+              </button>
+            </span>
           ))}
         </div>
       </section>

@@ -26,8 +26,9 @@ import { getVideoDuration } from "../../lib/validateVideo";
 import { uploadListingVideo } from "../../lib/uploadPhoto";
 import { getCurrentPosition, reverseGeocode } from "../../lib/geolocation";
 import { Autocomplete } from "../../components/Autocomplete";
+import { useSiteContent } from "../../context/SiteContentContext";
 import type { ListingDraft } from "../../data/listingTypes";
-import { cameroonCities, quartiersByVille, cameroonUniversities } from "../../data/cameroonLocations";
+import { quartiersByVille } from "../../data/cameroonLocations";
 
 const steps = ["Type", "Infos", "Photos", "Tarif", "Propriétaire", "Aperçu"];
 
@@ -43,14 +44,13 @@ const typeOptions = [
   { id: "Colocation", icon: Users2, desc: "Chambre en colocation (plusieurs occupants)" },
 ];
 
-const villes = cameroonCities;
-const universitesOptions = cameroonUniversities;
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
 
 export function PublishWizard() {
   const { id: editId } = useParams();
   const { ownerId, draft, updateDraft, submitDraft, resetDraft } = useOwner();
   const { getListing, updateListing } = useListings();
+  const { universities: universitesOptions, cities: villes } = useSiteContent();
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);

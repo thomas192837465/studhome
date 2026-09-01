@@ -4,9 +4,9 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
+import { useSiteContent } from "../context/SiteContentContext";
 import { ListingCard } from "../components/ListingCard";
 import { Autocomplete } from "../components/Autocomplete";
-import { cameroonCities, cameroonUniversities } from "../data/cameroonLocations";
 
 const typeOptions = ["Chambre", "Studio", "Appartement", "Résidence étudiante", "Colocation"] as const;
 
@@ -14,6 +14,7 @@ type SortKey = "recent" | "asc" | "desc";
 
 export function Listings() {
   const { getPublicListings } = useListings();
+  const { universities: cameroonUniversities, cities: cameroonCities } = useSiteContent();
   const allListings = getPublicListings();
   const [params, setParams] = useSearchParams();
   const [ville, setVille] = useState(params.get("ville") ?? "");

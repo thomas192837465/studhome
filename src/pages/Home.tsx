@@ -28,26 +28,12 @@ import { WatermarkedImage } from "../components/WatermarkedImage";
 import { Autocomplete } from "../components/Autocomplete";
 import { useListings } from "../context/ListingsContext";
 import { useSiteContent } from "../context/SiteContentContext";
-import { cameroonUniversities } from "../data/cameroonLocations";
 
 const statIcons: Record<string, typeof faUserGroup> = {
   users: faUserGroup,
   schools: faSchool,
   listings: faFileLines,
 };
-
-const cities = [
-  "Yaoundé",
-  "Douala",
-  "Bafoussam",
-  "Maroua",
-  "Buea",
-  "Ngaoundéré",
-  "Bertoua",
-  "Ebolowa",
-  "Garoua",
-  "Kribi",
-];
 
 const whyUs = [
   {
@@ -111,7 +97,7 @@ export function Home() {
   const [universite, setUniversite] = useState("");
   const { getPublicListings } = useListings();
   const publicListings = getPublicListings();
-  const { cityGrid, featuredListingIds, siteStats, heroPhotos } = useSiteContent();
+  const { cityGrid, featuredListingIds, siteStats, heroPhotos, universities: cameroonUniversities, cities } = useSiteContent();
   const filledCitySlots = cityGrid.filter((s) => s.city);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);

@@ -744,3 +744,102 @@ create policy "city_photos_admin_update" on public.city_photos
   for update using (public.is_admin());
 create policy "city_photos_admin_delete" on public.city_photos
   for delete using (public.is_admin());
+
+-- ============================================================================
+-- Migration 14: admin-managed university list, replacing the hardcoded
+-- array — every "Université" field/dropdown across the app (student search,
+-- profile, owner publish wizard) now reads from this table, so an admin
+-- adding a new one instantly completes all of them. Seeded with the
+-- previously-hardcoded list so nothing already in use is lost.
+-- ============================================================================
+
+create table if not exists public.universities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table public.universities enable row level security;
+
+drop policy if exists "universities_read" on public.universities;
+drop policy if exists "universities_admin_insert" on public.universities;
+drop policy if exists "universities_admin_delete" on public.universities;
+
+create policy "universities_read" on public.universities
+  for select using (true);
+create policy "universities_admin_insert" on public.universities
+  for insert with check (public.is_admin());
+create policy "universities_admin_delete" on public.universities
+  for delete using (public.is_admin());
+
+alter publication supabase_realtime add table public.universities;
+
+insert into public.universities (name) values
+  ('Université de Yaoundé I'),
+  ('Université de Yaoundé II (Soa)'),
+  ('Université de Douala'),
+  ('Université de Dschang'),
+  ('Université de Buea'),
+  ('Université de Ngaoundéré'),
+  ('Université de Bamenda'),
+  ('Université de Maroua'),
+  ('Université de Bertoua'),
+  ('École Normale Supérieure de Yaoundé'),
+  ('École Normale Supérieure de Maroua'),
+  ('Institut Universitaire de Technologie (IUT)'),
+  ('Université Catholique d''Afrique Centrale (UCAC)'),
+  ('Université des Montagnes (Bangangté)'),
+  ('Université Protestante d''Afrique Centrale (UPAC)'),
+  ('ICT University'),
+  ('Institut Siantou')
+on conflict (name) do nothing;
+
+-- ============================================================================
+-- Migration 15: admin-managed city list, same pattern as universities
+-- (Migration 14) — every "Ville" field/dropdown across the app (student
+-- search, profile, listings filter, owner publish wizard, and the city-grid
+-- slot picker in admin settings) now reads from this table. Seeded with the
+-- previously-hardcoded list so nothing already in use is lost. Quartiers
+-- stay a static per-city lookup — a newly-admin-added city just starts with
+-- no quartier options, which is a pre-existing acceptable gap, not new.
+-- ============================================================================
+
+create table if not exists public.cities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table public.cities enable row level security;
+
+drop policy if exists "cities_read" on public.cities;
+drop policy if exists "cities_admin_insert" on public.cities;
+drop policy if exists "cities_admin_delete" on public.cities;
+
+create policy "cities_read" on public.cities
+  for select using (true);
+create policy "cities_admin_insert" on public.cities
+  for insert with check (public.is_admin());
+create policy "cities_admin_delete" on public.cities
+  for delete using (public.is_admin());
+
+alter publication supabase_realtime add table public.cities;
+
+insert into public.cities (name) values
+  ('Yaoundé'),
+  ('Douala'),
+  ('Bafoussam'),
+  ('Maroua'),
+  ('Buea'),
+  ('Ngaoundéré'),
+  ('Bertoua'),
+  ('Ebolowa'),
+  ('Garoua'),
+  ('Kribi'),
+  ('Dschang'),
+  ('Bamenda'),
+  ('Limbe'),
+  ('Kumba'),
+  ('Edéa'),
+  ('Foumban')
+on conflict (name) do nothing;

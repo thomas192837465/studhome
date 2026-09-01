@@ -25,6 +25,8 @@ interface SiteContentContextValue {
   featuredListingIds: string[];
   siteStats: SiteStat[];
   heroPhotos: HeroPhoto[];
+  universities: string[];
+  cities: string[];
   loading: boolean;
   setCityGridCity: (position: number, city: string) => Promise<void>;
   setCityGridPhoto: (position: number, photoUrl: string) => Promise<void>;
@@ -36,6 +38,10 @@ interface SiteContentContextValue {
   addHeroPhoto: (photoUrl: string) => Promise<void>;
   removeHeroPhoto: (id: string) => Promise<void>;
   moveHeroPhoto: (id: string, direction: "up" | "down") => Promise<void>;
+  addUniversity: (name: string) => Promise<void>;
+  removeUniversity: (name: string) => Promise<void>;
+  addCity: (name: string) => Promise<void>;
+  removeCity: (name: string) => Promise<void>;
 }
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -45,14 +51,18 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [featured, setFeatured] = useState<{ id: string; listingId: string; position: number }[]>([]);
   const [siteStats, setSiteStats] = useState<SiteStat[]>([]);
   const [heroPhotos, setHeroPhotos] = useState<HeroPhoto[]>([]);
+  const [universities, setUniversities] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [cityRes, featuredRes, statsRes, heroRes] = await Promise.all([
+    const [cityRes, featuredRes, statsRes, heroRes, universitiesRes, citiesRes] = await Promise.all([
       supabase.from("city_photos").select("*").order("position", { ascending: true }),
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
       supabase.from("hero_photos").select("*").order("position", { ascending: true }),
+      supabase.from("universities").select("name").order("name", { ascending: true }),
+      supabase.from("cities").select("name").order("name", { ascending: true }),
     ]);
     setCityGrid(
       (cityRes.data ?? []).map((r) => ({ id: r.id, city: r.city, photoUrl: r.photo_url ?? "", position: r.position })),
@@ -60,6 +70,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     setFeatured((featuredRes.data ?? []).map((r) => ({ id: r.id, listingId: r.listing_id, position: r.position })));
     setSiteStats((statsRes.data ?? []) as SiteStat[]);
     setHeroPhotos((heroRes.data ?? []).map((r) => ({ id: r.id, url: r.photo_url, position: r.position })));
+    setUniversities((universitiesRes.data ?? []).map((r) => r.name));
+    setCities((citiesRes.data ?? []).map((r) => r.name));
     setLoading(false);
   };
 
@@ -72,6 +84,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "featured_listings" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "site_stats" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "hero_photos" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "universities" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cities" }, fetchAll)
       .subscribe();
 
     return () => {
@@ -157,6 +171,32 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
+  const addUniversity = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const { error } = await supabase.from("universities").insert({ name: trimmed });
+    if (error && !error.message.includes("duplicate")) throw error;
+    await fetchAll();
+  };
+
+  const removeUniversity = async (name: string) => {
+    await supabase.from("universities").delete().eq("name", name);
+    await fetchAll();
+  };
+
+  const addCity = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const { error } = await supabase.from("cities").insert({ name: trimmed });
+    if (error && !error.message.includes("duplicate")) throw error;
+    await fetchAll();
+  };
+
+  const removeCity = async (name: string) => {
+    await supabase.from("cities").delete().eq("name", name);
+    await fetchAll();
+  };
+
   const updateStat = async (key: string, value: string, label: string) => {
     const { error } = await supabase
       .from("site_stats")
@@ -171,6 +211,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       featuredListingIds: [...featured].sort((a, b) => a.position - b.position).map((f) => f.listingId),
       siteStats,
       heroPhotos: [...heroPhotos].sort((a, b) => a.position - b.position),
+      universities,
+      cities,
       loading,
       setCityGridCity,
       setCityGridPhoto,
@@ -182,8 +224,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       addHeroPhoto,
       removeHeroPhoto,
       moveHeroPhoto,
+      addUniversity,
+      removeUniversity,
+      addCity,
+      removeCity,
     }),
-    [cityGrid, featured, siteStats, heroPhotos, loading],
+    [cityGrid, featured, siteStats, heroPhotos, universities, cities, loading],
   );
 
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;
