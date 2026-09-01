@@ -60,3 +60,27 @@ export async function uploadHeroPhoto(dataUrl: string): Promise<string> {
   const { data } = supabase.storage.from("hero-photos").getPublicUrl(path);
   return data.publicUrl;
 }
+
+export async function uploadPartnerLogo(dataUrl: string): Promise<string> {
+  const blob = dataUrlToBlob(dataUrl);
+  const path = `${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from("partner-logos").upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("partner-logos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function uploadTestimonialPhoto(dataUrl: string): Promise<string> {
+  const blob = dataUrlToBlob(dataUrl);
+  const path = `${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from("testimonial-photos").upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("testimonial-photos").getPublicUrl(path);
+  return data.publicUrl;
+}

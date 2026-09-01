@@ -3,7 +3,7 @@ import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, Graduation
 import { useSiteContent, type SiteStat } from "../../context/SiteContentContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
-import { uploadCityPhoto, uploadHeroPhoto } from "../../lib/uploadPhoto";
+import { uploadCityPhoto, uploadHeroPhoto, uploadPartnerLogo, uploadTestimonialPhoto } from "../../lib/uploadPhoto";
 import { MfaSecuritySection } from "../../components/MfaSecuritySection";
 
 const GRID_SIZE = 10;
@@ -36,6 +36,14 @@ export function AdminSettings() {
     rejectUniversity,
     approveCity,
     rejectCity,
+    partnerLogos,
+    addPartnerLogo,
+    removePartnerLogo,
+    movePartnerLogo,
+    testimonials,
+    addTestimonial,
+    removeTestimonial,
+    moveTestimonial,
   } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
@@ -47,6 +55,13 @@ export function AdminSettings() {
   const [addingUniversity, setAddingUniversity] = useState(false);
   const [newCity, setNewCity] = useState("");
   const [addingCity, setAddingCity] = useState(false);
+  const [newLogoName, setNewLogoName] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [testimonialForm, setTestimonialForm] = useState({ name: "", university: "", city: "", quote: "", photoUrl: "" });
+  const [uploadingTestimonialPhoto, setUploadingTestimonialPhoto] = useState(false);
+  const [savingTestimonial, setSavingTestimonial] = useState(false);
+  const testimonialPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddUniversity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +108,41 @@ export function AdminSettings() {
       await addHeroPhoto(url);
     } finally {
       setUploadingHero(false);
+    }
+  };
+
+  const handleLogoFile = async (file: File) => {
+    setUploadingLogo(true);
+    try {
+      const resized = await resizeImageFile(file, 400, 0.9);
+      const url = await uploadPartnerLogo(resized);
+      await addPartnerLogo(newLogoName, url);
+      setNewLogoName("");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleTestimonialPhotoFile = async (file: File) => {
+    setUploadingTestimonialPhoto(true);
+    try {
+      const resized = await resizeImageFile(file, 400, 0.85);
+      const url = await uploadTestimonialPhoto(resized);
+      setTestimonialForm((f) => ({ ...f, photoUrl: url }));
+    } finally {
+      setUploadingTestimonialPhoto(false);
+    }
+  };
+
+  const handleAddTestimonial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testimonialForm.name.trim() || !testimonialForm.quote.trim()) return;
+    setSavingTestimonial(true);
+    try {
+      await addTestimonial(testimonialForm);
+      setTestimonialForm({ name: "", university: "", city: "", quote: "", photoUrl: "" });
+    } finally {
+      setSavingTestimonial(false);
     }
   };
 
@@ -319,6 +369,183 @@ export function AdminSettings() {
         <div className="grid gap-4 sm:grid-cols-3">
           {siteStats.map((stat) => (
             <StatEditor key={stat.key} stat={stat} onSave={updateStat} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-semibold text-brand-navy mb-1">Logos partenaires</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Affichés dans la section "Ils nous font confiance" de la page d'accueil, à la place de simples bulles de
+          texte.
+        </p>
+        <div className="flex flex-wrap gap-4 mb-4">
+          {partnerLogos.map((logo, i) => (
+            <div key={logo.id} className="group relative flex h-20 w-32 flex-col items-center justify-center gap-1 rounded-xl border border-gray-100 bg-white p-2">
+              <img src={logo.url} alt={logo.name} className="h-9 max-w-full object-contain" />
+              <span className="truncate text-[10px] text-gray-400">{logo.name || "—"}</span>
+              <div className="absolute inset-0 flex items-center justify-center gap-1.5 rounded-xl bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => movePartnerLogo(logo.id, "up")}
+                  disabled={i === 0}
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-brand-navy disabled:opacity-40"
+                >
+                  <ArrowUp size={11} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => movePartnerLogo(logo.id, "down")}
+                  disabled={i === partnerLogos.length - 1}
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-brand-navy disabled:opacity-40"
+                >
+                  <ArrowDown size={11} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removePartnerLogo(logo.id)}
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-red-500"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 max-w-md">
+          <input
+            value={newLogoName}
+            onChange={(e) => setNewLogoName(e.target.value)}
+            placeholder="Nom du partenaire"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          <button
+            type="button"
+            disabled={uploadingLogo}
+            onClick={() => logoFileInputRef.current?.click()}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+          >
+            <UploadCloud size={15} /> {uploadingLogo ? "Envoi..." : "Ajouter un logo"}
+          </button>
+          <input
+            ref={logoFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleLogoFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-semibold text-brand-navy mb-1">Avis mis en avant</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Avis affichés en carrousel dans la section "Ce que disent les étudiants" de la page d'accueil.
+        </p>
+        <form onSubmit={handleAddTestimonial} className="mb-5 max-w-lg rounded-xl border border-gray-100 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={uploadingTestimonialPhoto}
+              onClick={() => testimonialPhotoInputRef.current?.click()}
+              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-brand-blue/40"
+            >
+              {testimonialForm.photoUrl ? (
+                <img src={testimonialForm.photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Camera size={16} />
+              )}
+            </button>
+            <input
+              ref={testimonialPhotoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleTestimonialPhotoFile(file);
+                e.target.value = "";
+              }}
+            />
+            <div className="grid flex-1 grid-cols-2 gap-2">
+              <input
+                value={testimonialForm.name}
+                onChange={(e) => setTestimonialForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Prénom *"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+              <input
+                value={testimonialForm.university}
+                onChange={(e) => setTestimonialForm((f) => ({ ...f, university: e.target.value }))}
+                placeholder="Université"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+              />
+            </div>
+          </div>
+          <input
+            value={testimonialForm.city}
+            onChange={(e) => setTestimonialForm((f) => ({ ...f, city: e.target.value }))}
+            placeholder="Lieu (ville)"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          <textarea
+            value={testimonialForm.quote}
+            onChange={(e) => setTestimonialForm((f) => ({ ...f, quote: e.target.value }))}
+            placeholder="Texte de l'avis *"
+            rows={3}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          <button
+            type="submit"
+            disabled={savingTestimonial || !testimonialForm.name.trim() || !testimonialForm.quote.trim()}
+            className="flex items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+          >
+            <Plus size={15} /> {savingTestimonial ? "Ajout..." : "Ajouter cet avis"}
+          </button>
+        </form>
+        <div className="space-y-2">
+          {testimonials.map((t, i) => (
+            <div key={t.id} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3">
+              {t.photoUrl ? (
+                <img src={t.photoUrl} alt={t.name} className="h-10 w-10 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="h-10 w-10 shrink-0 rounded-full bg-gray-200" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-brand-navy">{t.name}</p>
+                <p className="text-xs text-gray-500">{[t.university, t.city].filter(Boolean).join(" · ")}</p>
+                <p className="mt-1 text-xs text-gray-500 line-clamp-2">"{t.quote}"</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => moveTestimonial(t.id, "up")}
+                  disabled={i === 0}
+                  className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-50 disabled:opacity-40"
+                >
+                  <ArrowUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveTestimonial(t.id, "down")}
+                  disabled={i === testimonials.length - 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-50 disabled:opacity-40"
+                >
+                  <ArrowDown size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeTestimonial(t.id)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-red-500 hover:bg-red-50"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       </section>

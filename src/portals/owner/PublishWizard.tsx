@@ -169,7 +169,7 @@ export function PublishWizard() {
     if (toProcess.length === 0) return;
     setUploading(true);
     try {
-      const resized = await Promise.all(toProcess.map((file) => resizeImageFile(file)));
+      const resized = await Promise.all(toProcess.map((file) => resizeImageFile(file, 1600, 0.82, true)));
       updateDraft({ photos: [...draft.photos, ...resized] });
     } finally {
       setUploading(false);

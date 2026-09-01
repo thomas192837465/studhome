@@ -22,7 +22,6 @@ import {
   faBuilding,
 } from "@fortawesome/free-solid-svg-icons";
 import heroRoom from "../assets/images/hero-room.jpg";
-import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { CameroonFlag } from "../components/CameroonFlag";
 import { WatermarkedImage } from "../components/WatermarkedImage";
 import { Autocomplete } from "../components/Autocomplete";
@@ -65,42 +64,27 @@ const steps = [
   { icon: Smile, title: "Emménagez", text: "Installez-vous et profitez sereinement de vos études !" },
 ];
 
-const testimonials = [
-  {
-    name: "Linda",
-    school: "Université de Yaoundé I",
-    photo: testimonialLinda,
-    quote:
-      "Ce que j'ai préféré avec StudHome c'est le fait d'avoir des photos de plusieurs logements. J'ai choisi celui qui correspondait vraiment à mes critères : proche de l'école, grande chambre, calme...",
-  },
-  {
-    name: "Olivia",
-    school: "Université de Douala",
-    photo: null,
-    quote:
-      "Quand j'ai obtenu mon bac, j'étais un peu perdu pour trouver un logement sans mes parents. Avec StudHome, j'ai communiqué avec le bailleur simplement à distance, et j'ai pu m'installer sans stress avant la rentrée.",
-  },
-  {
-    name: "Stéphane",
-    school: "Université de Buea",
-    photo: null,
-    quote:
-      "Je stressais à l'idée de tomber sur des démarcheurs, mais avec StudHome on a les contacts des bailleurs ou des concierges. Il y a une totale transparence sur les tarifs des loyers. Je recommande à 100 % !",
-  },
-];
-
-const partners = ["Sanlam", "Deplaycs.ci", "SAIER", "HedTech", "CRED"];
-
 export function Home() {
   const navigate = useNavigate();
   const [ville, setVille] = useState("");
   const [universite, setUniversite] = useState("");
   const { getPublicListings } = useListings();
   const publicListings = getPublicListings();
-  const { cityGrid, featuredListingIds, siteStats, heroPhotos, universities: cameroonUniversities, cities } = useSiteContent();
+  const {
+    cityGrid,
+    featuredListingIds,
+    siteStats,
+    heroPhotos,
+    universities: cameroonUniversities,
+    cities,
+    partnerLogos,
+    testimonials,
+  } = useSiteContent();
   const filledCitySlots = cityGrid.filter((s) => s.city);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [testimonialIndex, setTestimonialIndex] = useState(0);
+  const activeTestimonial = testimonials[testimonialIndex % Math.max(testimonials.length, 1)];
 
   const carouselListings = useMemo(() => {
     const byId = new Map(publicListings.map((l) => [l.id, l]));
@@ -372,42 +356,77 @@ export function Home() {
             <p className="text-sm text-gray-500 mb-6">
               Reconnus par les plus grands Universitaires et les entreprises innovantes.
             </p>
-            <div className="flex flex-wrap gap-3">
-              {partners.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm"
-                >
-                  {p}
-                </span>
-              ))}
-            </div>
+            {partnerLogos.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-5">
+                {partnerLogos.map((logo) => (
+                  <img
+                    key={logo.id}
+                    src={logo.url}
+                    alt={logo.name || "Partenaire"}
+                    className="h-8 max-w-[110px] object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition"
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Aucun logo partenaire pour l'instant.</p>
+            )}
           </div>
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-brand-navy">Ce que disent les étudiants</h3>
-              <button className="text-sm font-medium text-brand-navy rounded-full border border-gray-300 px-4 py-1.5 bg-white">
-                Voir tous les avis
-              </button>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {testimonials.map((t) => (
-                <div key={t.name} className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    {t.photo ? (
-                      <img src={t.photo} alt={t.name} className="h-9 w-9 rounded-full object-cover" />
+            <h3 className="font-semibold text-brand-navy mb-6">Ce que disent les étudiants</h3>
+            {testimonials.length === 0 || !activeTestimonial ? (
+              <p className="text-sm text-gray-400">Aucun avis mis en avant pour l'instant.</p>
+            ) : (
+              <div>
+                <div className="rounded-2xl bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    {activeTestimonial.photoUrl ? (
+                      <img
+                        src={activeTestimonial.photoUrl}
+                        alt={activeTestimonial.name}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
                     ) : (
-                      <span className="h-9 w-9 rounded-full bg-gray-200" />
+                      <span className="h-10 w-10 rounded-full bg-gray-200" />
                     )}
                     <div>
-                      <p className="text-sm font-semibold text-brand-navy leading-tight">{t.name}</p>
-                      <p className="text-[11px] text-gray-500">{t.school}</p>
+                      <p className="text-sm font-semibold text-brand-navy leading-tight">{activeTestimonial.name}</p>
+                      <p className="text-[11px] text-gray-500">
+                        {[activeTestimonial.university, activeTestimonial.city].filter(Boolean).join(" · ")}
+                      </p>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-5">"{t.quote}"</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">"{activeTestimonial.quote}"</p>
                 </div>
-              ))}
-            </div>
+                {testimonials.length > 1 && (
+                  <div className="mt-4 flex items-center justify-center gap-2.5">
+                    <button
+                      onClick={() => setTestimonialIndex((i) => (i - 1 + testimonials.length) % testimonials.length)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-navy shadow-sm hover:bg-gray-50"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {testimonials.map((t, i) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTestimonialIndex(i)}
+                          aria-label={`Avis ${i + 1}`}
+                          className={`h-1.5 rounded-full transition-all ${
+                            i === testimonialIndex % testimonials.length ? "w-4 bg-brand-blue" : "w-1.5 bg-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setTestimonialIndex((i) => (i + 1) % testimonials.length)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-navy shadow-sm hover:bg-gray-50"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>

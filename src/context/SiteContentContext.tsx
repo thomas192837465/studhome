@@ -20,6 +20,23 @@ export interface CityGridSlot {
   position: number;
 }
 
+export interface PartnerLogo {
+  id: string;
+  name: string;
+  url: string;
+  position: number;
+}
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  university: string;
+  city: string;
+  quote: string;
+  photoUrl: string;
+  position: number;
+}
+
 interface SiteContentContextValue {
   cityGrid: CityGridSlot[];
   featuredListingIds: string[];
@@ -29,6 +46,8 @@ interface SiteContentContextValue {
   cities: string[];
   pendingUniversities: string[];
   pendingCities: string[];
+  partnerLogos: PartnerLogo[];
+  testimonials: Testimonial[];
   loading: boolean;
   setCityGridCity: (position: number, city: string) => Promise<void>;
   setCityGridPhoto: (position: number, photoUrl: string) => Promise<void>;
@@ -50,6 +69,12 @@ interface SiteContentContextValue {
   rejectUniversity: (name: string) => Promise<void>;
   approveCity: (name: string) => Promise<void>;
   rejectCity: (name: string) => Promise<void>;
+  addPartnerLogo: (name: string, url: string) => Promise<void>;
+  removePartnerLogo: (id: string) => Promise<void>;
+  movePartnerLogo: (id: string, direction: "up" | "down") => Promise<void>;
+  addTestimonial: (t: { name: string; university: string; city: string; quote: string; photoUrl: string }) => Promise<void>;
+  removeTestimonial: (id: string) => Promise<void>;
+  moveTestimonial: (id: string, direction: "up" | "down") => Promise<void>;
 }
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -63,16 +88,20 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [cities, setCities] = useState<string[]>([]);
   const [pendingUniversities, setPendingUniversities] = useState<string[]>([]);
   const [pendingCities, setPendingCities] = useState<string[]>([]);
+  const [partnerLogos, setPartnerLogos] = useState<PartnerLogo[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [cityRes, featuredRes, statsRes, heroRes, universitiesRes, citiesRes] = await Promise.all([
+    const [cityRes, featuredRes, statsRes, heroRes, universitiesRes, citiesRes, logosRes, testimonialsRes] = await Promise.all([
       supabase.from("city_photos").select("*").order("position", { ascending: true }),
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
       supabase.from("hero_photos").select("*").order("position", { ascending: true }),
       supabase.from("universities").select("name, status").order("name", { ascending: true }),
       supabase.from("cities").select("name, status").order("name", { ascending: true }),
+      supabase.from("partner_logos").select("*").order("position", { ascending: true }),
+      supabase.from("site_testimonials").select("*").order("position", { ascending: true }),
     ]);
     setCityGrid(
       (cityRes.data ?? []).map((r) => ({ id: r.id, city: r.city, photoUrl: r.photo_url ?? "", position: r.position })),
@@ -86,6 +115,18 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     setCities(cityRows.filter((r) => r.status !== "pending").map((r) => r.name));
     setPendingUniversities(uniRows.filter((r) => r.status === "pending").map((r) => r.name));
     setPendingCities(cityRows.filter((r) => r.status === "pending").map((r) => r.name));
+    setPartnerLogos((logosRes.data ?? []).map((r) => ({ id: r.id, name: r.name ?? "", url: r.logo_url, position: r.position })));
+    setTestimonials(
+      (testimonialsRes.data ?? []).map((r) => ({
+        id: r.id,
+        name: r.author_name,
+        university: r.university ?? "",
+        city: r.city ?? "",
+        quote: r.quote,
+        photoUrl: r.photo_url ?? "",
+        position: r.position,
+      })),
+    );
     setLoading(false);
   };
 
@@ -100,6 +141,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "hero_photos" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "universities" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "cities" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "partner_logos" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_testimonials" }, fetchAll)
       .subscribe();
 
     return () => {
@@ -249,6 +292,65 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
+  const addPartnerLogo = async (name: string, url: string) => {
+    const nextPosition = partnerLogos.length > 0 ? Math.max(...partnerLogos.map((p) => p.position)) + 1 : 0;
+    const { error } = await supabase.from("partner_logos").insert({ name: name.trim(), logo_url: url, position: nextPosition });
+    if (error) throw error;
+    await fetchAll();
+  };
+
+  const removePartnerLogo = async (id: string) => {
+    await supabase.from("partner_logos").delete().eq("id", id);
+    await fetchAll();
+  };
+
+  const movePartnerLogo = async (id: string, direction: "up" | "down") => {
+    const sorted = [...partnerLogos].sort((a, b) => a.position - b.position);
+    const index = sorted.findIndex((p) => p.id === id);
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    if (index === -1 || swapWith < 0 || swapWith >= sorted.length) return;
+    const a = sorted[index];
+    const b = sorted[swapWith];
+    await Promise.all([
+      supabase.from("partner_logos").update({ position: b.position }).eq("id", a.id),
+      supabase.from("partner_logos").update({ position: a.position }).eq("id", b.id),
+    ]);
+    await fetchAll();
+  };
+
+  const addTestimonial = async (t: { name: string; university: string; city: string; quote: string; photoUrl: string }) => {
+    const nextPosition = testimonials.length > 0 ? Math.max(...testimonials.map((x) => x.position)) + 1 : 0;
+    const { error } = await supabase.from("site_testimonials").insert({
+      author_name: t.name.trim(),
+      university: t.university.trim(),
+      city: t.city.trim(),
+      quote: t.quote.trim(),
+      photo_url: t.photoUrl || null,
+      position: nextPosition,
+    });
+    if (error) throw error;
+    await fetchAll();
+  };
+
+  const removeTestimonial = async (id: string) => {
+    await supabase.from("site_testimonials").delete().eq("id", id);
+    await fetchAll();
+  };
+
+  const moveTestimonial = async (id: string, direction: "up" | "down") => {
+    const sorted = [...testimonials].sort((a, b) => a.position - b.position);
+    const index = sorted.findIndex((t) => t.id === id);
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    if (index === -1 || swapWith < 0 || swapWith >= sorted.length) return;
+    const a = sorted[index];
+    const b = sorted[swapWith];
+    await Promise.all([
+      supabase.from("site_testimonials").update({ position: b.position }).eq("id", a.id),
+      supabase.from("site_testimonials").update({ position: a.position }).eq("id", b.id),
+    ]);
+    await fetchAll();
+  };
+
   const updateStat = async (key: string, value: string, label: string) => {
     const { error } = await supabase
       .from("site_stats")
@@ -267,6 +369,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       cities,
       pendingUniversities,
       pendingCities,
+      partnerLogos,
+      testimonials,
       loading,
       setCityGridCity,
       setCityGridPhoto,
@@ -288,8 +392,26 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       rejectUniversity,
       approveCity,
       rejectCity,
+      addPartnerLogo,
+      removePartnerLogo,
+      movePartnerLogo,
+      addTestimonial,
+      removeTestimonial,
+      moveTestimonial,
     }),
-    [cityGrid, featured, siteStats, heroPhotos, universities, cities, pendingUniversities, pendingCities, loading],
+    [
+      cityGrid,
+      featured,
+      siteStats,
+      heroPhotos,
+      universities,
+      cities,
+      pendingUniversities,
+      pendingCities,
+      partnerLogos,
+      testimonials,
+      loading,
+    ],
   );
 
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;
