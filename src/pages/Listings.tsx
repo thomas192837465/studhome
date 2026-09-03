@@ -7,8 +7,11 @@ import { useListings } from "../context/ListingsContext";
 import { useSiteContent } from "../context/SiteContentContext";
 import { ListingCard } from "../components/ListingCard";
 import { Autocomplete } from "../components/Autocomplete";
+import { DualRangeSlider } from "../components/DualRangeSlider";
 
-const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation", "Meublé", "Non meublé"] as const;
+const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation"] as const;
+const equipementFilterOptions = ["Meublé", "Non meublé"] as const;
+const BUDGET_MAX = 3000000;
 
 type SortKey = "recent" | "asc" | "desc";
 
@@ -25,7 +28,8 @@ export function Listings() {
       .filter((u) => !u.city || u.city.toLowerCase() === ville.trim().toLowerCase())
       .map((u) => u.name);
   }, [ville, cameroonUniversities, universityEntries]);
-  const [budgetMax, setBudgetMax] = useState(3000000);
+  const [budgetMin, setBudgetMin] = useState(0);
+  const [budgetMax, setBudgetMax] = useState(BUDGET_MAX);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
@@ -38,7 +42,7 @@ export function Listings() {
     let result = allListings.filter((l) => {
       if (ville && !l.city.toLowerCase().includes(ville.toLowerCase())) return false;
       if (universite && !l.universities.some((u) => u.toLowerCase().includes(universite.toLowerCase()))) return false;
-      if (l.price > budgetMax) return false;
+      if (l.price < budgetMin || l.price > budgetMax) return false;
       if (selectedTypes.length && !selectedTypes.includes(l.type)) return false;
       return true;
     });
@@ -46,7 +50,7 @@ export function Listings() {
     if (sort === "desc") result = [...result].sort((a, b) => b.price - a.price);
     if (sort === "recent") result = [...result].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return result;
-  }, [allListings, ville, universite, budgetMax, selectedTypes, sort]);
+  }, [allListings, ville, universite, budgetMin, budgetMax, selectedTypes, sort]);
 
   const perPage = 6;
   const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -61,7 +65,8 @@ export function Listings() {
   };
 
   const reset = () => {
-    setBudgetMax(3000000);
+    setBudgetMin(0);
+    setBudgetMax(BUDGET_MAX);
     setSelectedTypes([]);
     setPage(1);
   };
@@ -106,37 +111,39 @@ export function Listings() {
 
       <div className="mt-8 grid lg:grid-cols-[260px_1fr] gap-10">
         {/* filters */}
-        <aside>
+        <aside className="rounded-2xl border border-gray-100 p-5">
           <h3 className="font-display font-bold text-lg text-brand-navy">Filters</h3>
           <hr className="my-4 border-gray-100" />
 
           <h4 className="font-semibold text-sm text-brand-navy mb-3">Budget (FCFA / an)</h4>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <input
               type="number"
-              value={0}
-              readOnly
-              className="w-1/2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-500"
+              value={budgetMin}
+              onChange={(e) => setBudgetMin(Math.min(Number(e.target.value), budgetMax - 25000))}
+              className="w-1/2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
             />
             <span className="text-gray-400">—</span>
             <input
               type="number"
               value={budgetMax}
-              onChange={(e) => setBudgetMax(Number(e.target.value))}
-              className="w-1/2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-500"
+              onChange={(e) => setBudgetMax(Math.max(Number(e.target.value), budgetMin + 25000))}
+              className="w-1/2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
             />
           </div>
-          <input
-            type="range"
+          <DualRangeSlider
             min={0}
-            max={3000000}
+            max={BUDGET_MAX}
             step={25000}
-            value={budgetMax}
-            onChange={(e) => setBudgetMax(Number(e.target.value))}
-            className="w-full accent-brand-blue"
+            valueMin={budgetMin}
+            valueMax={budgetMax}
+            onChangeMin={setBudgetMin}
+            onChangeMax={setBudgetMax}
           />
 
-          <h4 className="font-semibold text-sm text-brand-navy mt-6 mb-3">Type de logement</h4>
+          <hr className="my-5 border-gray-100" />
+
+          <h4 className="font-semibold text-sm text-brand-navy mb-3">Type de logement</h4>
           <div className="space-y-2.5">
             {typeOptions.map((t) => (
               <label key={t} className="flex items-center gap-2.5 text-sm text-gray-600">
@@ -151,7 +158,24 @@ export function Listings() {
             ))}
           </div>
 
-          <button onClick={reset} className="mt-6 text-sm font-semibold text-brand-blue">
+          <hr className="my-5 border-gray-100" />
+
+          <h4 className="font-semibold text-sm text-brand-navy mb-3">Équipements</h4>
+          <div className="space-y-2.5">
+            {equipementFilterOptions.map((t) => (
+              <label key={t} className="flex items-center gap-2.5 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={selectedTypes.includes(t)}
+                  onChange={() => toggleType(t)}
+                  className="h-4 w-4 rounded accent-brand-blue"
+                />
+                {t}
+              </label>
+            ))}
+          </div>
+
+          <button onClick={reset} className="mt-6 block w-full text-center text-sm font-semibold text-brand-blue underline">
             Réinitialiser
           </button>
         </aside>
