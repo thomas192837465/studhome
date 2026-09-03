@@ -14,11 +14,17 @@ type SortKey = "recent" | "asc" | "desc";
 
 export function Listings() {
   const { getPublicListings } = useListings();
-  const { universities: cameroonUniversities, cities: cameroonCities } = useSiteContent();
+  const { universities: cameroonUniversities, universityEntries, cities: cameroonCities } = useSiteContent();
   const allListings = getPublicListings();
   const [params, setParams] = useSearchParams();
   const [ville, setVille] = useState(params.get("ville") ?? "");
   const [universite, setUniversite] = useState(params.get("universite") ?? "");
+  const universiteOptions = useMemo(() => {
+    if (!ville.trim()) return cameroonUniversities;
+    return universityEntries
+      .filter((u) => !u.city || u.city.toLowerCase() === ville.trim().toLowerCase())
+      .map((u) => u.name);
+  }, [ville, cameroonUniversities, universityEntries]);
   const [budgetMax, setBudgetMax] = useState(3000000);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
@@ -84,7 +90,7 @@ export function Listings() {
             <Autocomplete
               value={universite}
               onChange={setUniversite}
-              options={cameroonUniversities}
+              options={universiteOptions}
               placeholder="Toutes les universités"
               className="w-full text-sm font-medium text-brand-navy focus:outline-none"
             />

@@ -76,11 +76,18 @@ export function Home() {
     siteStats,
     heroPhotos,
     universities: cameroonUniversities,
+    universityEntries,
     cities,
     partnerLogos,
     testimonials,
   } = useSiteContent();
   const filledCitySlots = cityGrid.filter((s) => s.city);
+  const universiteOptions = useMemo(() => {
+    if (!ville.trim()) return cameroonUniversities;
+    return universityEntries
+      .filter((u) => !u.city || u.city.toLowerCase() === ville.trim().toLowerCase())
+      .map((u) => u.name);
+  }, [ville, cameroonUniversities, universityEntries]);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
@@ -167,7 +174,7 @@ export function Home() {
               <Autocomplete
                 value={universite}
                 onChange={setUniversite}
-                options={cameroonUniversities}
+                options={universiteOptions}
                 placeholder="Université / Ecole"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
               />

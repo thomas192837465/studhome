@@ -138,7 +138,7 @@ export function PublishWizard() {
   const addUniversityFromInput = (v: string) => {
     if (v && !draft.universities.includes(v)) {
       updateDraft({ universities: [...draft.universities, v] });
-      if (!universitesOptions.some((u) => u.toLowerCase() === v.toLowerCase())) proposeUniversity(v);
+      if (!universitesOptions.some((u) => u.toLowerCase() === v.toLowerCase())) proposeUniversity(v, draft.ville);
     }
     setUniInput("");
   };

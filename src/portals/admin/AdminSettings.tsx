@@ -24,9 +24,10 @@ export function AdminSettings() {
     addHeroPhoto,
     removeHeroPhoto,
     moveHeroPhoto,
-    universities,
+    universityEntries,
     addUniversity,
     removeUniversity,
+    setUniversityCity,
     cities: cameroonCities,
     addCity,
     removeCity,
@@ -52,6 +53,7 @@ export function AdminSettings() {
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const [newUniversity, setNewUniversity] = useState("");
+  const [newUniversityCity, setNewUniversityCity] = useState("");
   const [addingUniversity, setAddingUniversity] = useState(false);
   const [newCity, setNewCity] = useState("");
   const [addingCity, setAddingCity] = useState(false);
@@ -68,8 +70,9 @@ export function AdminSettings() {
     if (!newUniversity.trim()) return;
     setAddingUniversity(true);
     try {
-      await addUniversity(newUniversity);
+      await addUniversity(newUniversity, newUniversityCity);
       setNewUniversity("");
+      setNewUniversityCity("");
     } finally {
       setAddingUniversity(false);
     }
@@ -554,15 +557,28 @@ export function AdminSettings() {
         <h2 className="font-semibold text-brand-navy mb-1">Universités</h2>
         <p className="text-sm text-gray-500 mb-4">
           La liste ci-dessous complète automatiquement tous les champs "Université" du site (recherche, profil
-          étudiant, questionnaire propriétaire).
+          étudiant, questionnaire propriétaire). La ville associée détermine dans quelle ville cette université
+          apparaît dans le filtre de recherche — une université sans ville assignée apparaît pour toutes les villes.
         </p>
-        <form onSubmit={handleAddUniversity} className="flex gap-2 mb-4 max-w-md">
+        <form onSubmit={handleAddUniversity} className="flex flex-wrap gap-2 mb-4 max-w-lg">
           <input
             value={newUniversity}
             onChange={(e) => setNewUniversity(e.target.value)}
             placeholder="Ex : Université de Buea"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+            className="min-w-[200px] flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
           />
+          <select
+            value={newUniversityCity}
+            onChange={(e) => setNewUniversityCity(e.target.value)}
+            className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none"
+          >
+            <option value="">Toutes les villes</option>
+            {cameroonCities.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             disabled={addingUniversity || !newUniversity.trim()}
@@ -603,23 +619,35 @@ export function AdminSettings() {
             </div>
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          {universities.map((u) => (
-            <span
-              key={u}
-              className="flex items-center gap-1.5 rounded-full bg-brand-blue-light px-3 py-1.5 text-xs font-medium text-brand-blue"
+        <div className="space-y-1.5">
+          {universityEntries.map((u) => (
+            <div
+              key={u.name}
+              className="flex items-center gap-2 rounded-xl border border-gray-100 px-3 py-2 text-sm"
             >
-              <GraduationCap size={13} />
-              {u}
+              <GraduationCap size={14} className="text-brand-blue shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-brand-navy">{u.name}</span>
+              <select
+                value={u.city}
+                onChange={(e) => setUniversityCity(u.name, e.target.value)}
+                className="shrink-0 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none"
+              >
+                <option value="">Toutes les villes</option>
+                {cameroonCities.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                onClick={() => removeUniversity(u)}
-                className="ml-0.5 text-brand-blue/60 hover:text-red-500"
+                onClick={() => removeUniversity(u.name)}
+                className="shrink-0 text-gray-300 hover:text-red-500"
                 title="Supprimer"
               >
-                ×
+                <Trash2 size={14} />
               </button>
-            </span>
+            </div>
           ))}
         </div>
       </section>

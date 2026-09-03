@@ -43,6 +43,7 @@ interface SiteContentContextValue {
   siteStats: SiteStat[];
   heroPhotos: HeroPhoto[];
   universities: string[];
+  universityEntries: { name: string; city: string }[];
   cities: string[];
   pendingUniversities: string[];
   pendingCities: string[];
@@ -59,11 +60,12 @@ interface SiteContentContextValue {
   addHeroPhoto: (photoUrl: string) => Promise<void>;
   removeHeroPhoto: (id: string) => Promise<void>;
   moveHeroPhoto: (id: string, direction: "up" | "down") => Promise<void>;
-  addUniversity: (name: string) => Promise<void>;
+  addUniversity: (name: string, city?: string) => Promise<void>;
   removeUniversity: (name: string) => Promise<void>;
+  setUniversityCity: (name: string, city: string) => Promise<void>;
   addCity: (name: string) => Promise<void>;
   removeCity: (name: string) => Promise<void>;
-  proposeUniversity: (name: string) => Promise<void>;
+  proposeUniversity: (name: string, city?: string) => Promise<void>;
   proposeCity: (name: string) => Promise<void>;
   approveUniversity: (name: string) => Promise<void>;
   rejectUniversity: (name: string) => Promise<void>;
@@ -85,6 +87,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [siteStats, setSiteStats] = useState<SiteStat[]>([]);
   const [heroPhotos, setHeroPhotos] = useState<HeroPhoto[]>([]);
   const [universities, setUniversities] = useState<string[]>([]);
+  const [universityEntries, setUniversityEntries] = useState<{ name: string; city: string }[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [pendingUniversities, setPendingUniversities] = useState<string[]>([]);
   const [pendingCities, setPendingCities] = useState<string[]>([]);
@@ -98,7 +101,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       supabase.from("featured_listings").select("*").order("position", { ascending: true }),
       supabase.from("site_stats").select("*"),
       supabase.from("hero_photos").select("*").order("position", { ascending: true }),
-      supabase.from("universities").select("name, status").order("name", { ascending: true }),
+      supabase.from("universities").select("name, status, city").order("name", { ascending: true }),
       supabase.from("cities").select("name, status").order("name", { ascending: true }),
       supabase.from("partner_logos").select("*").order("position", { ascending: true }),
       supabase.from("site_testimonials").select("*").order("position", { ascending: true }),
@@ -109,9 +112,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     setFeatured((featuredRes.data ?? []).map((r) => ({ id: r.id, listingId: r.listing_id, position: r.position })));
     setSiteStats((statsRes.data ?? []) as SiteStat[]);
     setHeroPhotos((heroRes.data ?? []).map((r) => ({ id: r.id, url: r.photo_url, position: r.position })));
-    const uniRows = (universitiesRes.data ?? []) as { name: string; status: string }[];
+    const uniRows = (universitiesRes.data ?? []) as { name: string; status: string; city: string | null }[];
     const cityRows = (citiesRes.data ?? []) as { name: string; status: string }[];
-    setUniversities(uniRows.filter((r) => r.status !== "pending").map((r) => r.name));
+    const approvedUniRows = uniRows.filter((r) => r.status !== "pending");
+    setUniversities(approvedUniRows.map((r) => r.name));
+    setUniversityEntries(approvedUniRows.map((r) => ({ name: r.name, city: r.city ?? "" })));
     setCities(cityRows.filter((r) => r.status !== "pending").map((r) => r.name));
     setPendingUniversities(uniRows.filter((r) => r.status === "pending").map((r) => r.name));
     setPendingCities(cityRows.filter((r) => r.status === "pending").map((r) => r.name));
@@ -228,16 +233,22 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
-  const addUniversity = async (name: string) => {
+  const addUniversity = async (name: string, city?: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const { error } = await supabase.from("universities").insert({ name: trimmed });
+    const { error } = await supabase.from("universities").insert({ name: trimmed, city: city?.trim() || null });
     if (error && !error.message.includes("duplicate")) throw error;
     await fetchAll();
   };
 
   const removeUniversity = async (name: string) => {
     await supabase.from("universities").delete().eq("name", name);
+    await fetchAll();
+  };
+
+  const setUniversityCity = async (name: string, city: string) => {
+    const { error } = await supabase.from("universities").update({ city: city.trim() || null }).eq("name", name);
+    if (error) throw error;
     await fetchAll();
   };
 
@@ -258,10 +269,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   // list yet — inserted as "pending" via an RPC (rather than a direct
   // insert) since regular users don't have insert rights on these tables,
   // only the security-definer function does.
-  const proposeUniversity = async (name: string) => {
+  const proposeUniversity = async (name: string, city?: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    await supabase.rpc("propose_university", { p_name: trimmed });
+    await supabase.rpc("propose_university", { p_name: trimmed, p_city: city?.trim() || null });
     await fetchAll();
   };
 
@@ -366,6 +377,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       siteStats,
       heroPhotos: [...heroPhotos].sort((a, b) => a.position - b.position),
       universities,
+      universityEntries,
       cities,
       pendingUniversities,
       pendingCities,
@@ -384,6 +396,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       moveHeroPhoto,
       addUniversity,
       removeUniversity,
+      setUniversityCity,
       addCity,
       removeCity,
       proposeUniversity,
@@ -405,6 +418,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       siteStats,
       heroPhotos,
       universities,
+      universityEntries,
       cities,
       pendingUniversities,
       pendingCities,
