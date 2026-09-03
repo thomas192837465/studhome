@@ -370,7 +370,7 @@ export function Home() {
                     key={logo.id}
                     src={logo.url}
                     alt={logo.name || "Partenaire"}
-                    className="h-8 max-w-[110px] object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition"
+                    className="h-16 max-w-[160px] object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition"
                   />
                 ))}
               </div>
