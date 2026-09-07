@@ -16,7 +16,7 @@ export function BuyCredits() {
       <p className="text-gray-500 mb-8">Achetez des crédits pour contacter les propriétaires et réserver vos logements.</p>
 
       <h2 className="font-semibold text-brand-navy mb-4">Choisissez votre pack</h2>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-3xl">
         {creditPacks.map((pack) => (
           <div
             key={pack.id}
@@ -41,7 +41,9 @@ export function BuyCredits() {
                 <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> {pack.tagline}
               </li>
               <li className="flex items-center gap-2 text-green-700">
-                <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> {pack.contacts} contacts propriétaires
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3" /> Jusqu'à {pack.contacts} logement
+                {pack.contacts > 1 ? "s" : ""}
+                {pack.includesWelcomeBonus ? " avec votre bonus de bienvenue" : ""}
               </li>
             </ul>
 

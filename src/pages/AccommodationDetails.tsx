@@ -381,6 +381,20 @@ export function AccommodationDetails() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-gray-100 p-5 shadow-sm">
             <h1 className="font-display text-xl font-bold text-brand-navy">{listing.title}</h1>
+            {(listing.type || listing.furnished) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {listing.type && (
+                  <span className="rounded-full bg-brand-blue-light px-2.5 py-0.5 text-xs font-medium text-brand-blue">
+                    {listing.type}
+                  </span>
+                )}
+                {listing.furnished && (
+                  <span className="rounded-full bg-brand-orange-light px-2.5 py-0.5 text-xs font-medium text-brand-orange-dark">
+                    {listing.furnished}
+                  </span>
+                )}
+              </div>
+            )}
             {publishedReviews.length > 0 && (
               <p className="mt-1 flex items-center gap-1.5 text-sm">
                 <FontAwesomeIcon icon={faStarSolid} className="h-3.5 w-3.5 text-brand-orange" />

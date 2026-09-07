@@ -86,6 +86,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       .insert({
         title: draft.title || `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
         type: draft.type,
+        furnished: draft.furnished || null,
         city: draft.ville,
         quartier: draft.quartier,
         address: draft.address,
@@ -131,6 +132,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       .update({
         title: draft.title || `${draft.type || "Logement"} à ${draft.quartier || draft.ville}`,
         type: draft.type,
+        furnished: draft.furnished || null,
         city: draft.ville,
         quartier: draft.quartier,
         address: draft.address,

@@ -46,8 +46,11 @@ const typeOptions = [
   { id: "Studio", icon: Building2, desc: "Studio autonome avec cuisine et salle d'eau" },
   { id: "Appartement", icon: Building, desc: "Appartement complet (2 pièces et plus)" },
   { id: "Colocation", icon: Users2, desc: "Chambre en colocation (plusieurs occupants)" },
-  { id: "Meublé", icon: Sofa, desc: "Logement équipé de meubles, prêt à vivre" },
-  { id: "Non meublé", icon: PackageOpen, desc: "Logement sans mobilier" },
+];
+
+const furnishedOptions = [
+  { id: "Meublé", icon: Sofa, desc: "Équipé de meubles, prêt à vivre" },
+  { id: "Non meublé", icon: PackageOpen, desc: "Sans mobilier" },
 ];
 
 const equipementsOptions = ["Eau chaude", "Wi-Fi", "Groupe électrogène", "Parking", "Gardien", "Climatisation"];
@@ -103,6 +106,7 @@ export function PublishWizard() {
       const asDraft: ListingDraft = {
         title: editingListing.title,
         type: editingListing.type,
+        furnished: editingListing.furnished,
         ville: editingListing.city,
         quartier: editingListing.quartier,
         address: editingListing.address,
@@ -268,6 +272,26 @@ export function PublishWizard() {
                   onClick={() => updateDraft({ type: id })}
                   className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
                     draft.type === id ? "border-brand-blue bg-brand-blue-light" : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <Icon size={22} className="text-brand-blue shrink-0 mt-0.5" />
+                  <span>
+                    <span className="block font-semibold text-brand-navy text-sm">{id}</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">{desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <h3 className="mt-7 font-display text-base font-bold text-brand-navy">Le logement est-il meublé ?</h3>
+            <p className="mt-1 text-sm text-gray-500">Cette information sera visible par les étudiants sur l'annonce.</p>
+            <div className="mt-4 grid sm:grid-cols-2 gap-4">
+              {furnishedOptions.map(({ id, icon: Icon, desc }) => (
+                <button
+                  key={id}
+                  onClick={() => updateDraft({ furnished: id })}
+                  className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                    draft.furnished === id ? "border-brand-blue bg-brand-blue-light" : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
                   <Icon size={22} className="text-brand-blue shrink-0 mt-0.5" />

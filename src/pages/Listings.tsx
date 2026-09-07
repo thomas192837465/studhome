@@ -31,11 +31,16 @@ export function Listings() {
   const [budgetMin, setBudgetMin] = useState(0);
   const [budgetMax, setBudgetMax] = useState(BUDGET_MAX);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedFurnished, setSelectedFurnished] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
 
   const toggleType = (t: string) => {
     setSelectedTypes((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
+  };
+
+  const toggleFurnished = (t: string) => {
+    setSelectedFurnished((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
   };
 
   const filtered = useMemo(() => {
@@ -44,13 +49,14 @@ export function Listings() {
       if (universite && !l.universities.some((u) => u.toLowerCase().includes(universite.toLowerCase()))) return false;
       if (l.price < budgetMin || l.price > budgetMax) return false;
       if (selectedTypes.length && !selectedTypes.includes(l.type)) return false;
+      if (selectedFurnished.length && !selectedFurnished.includes(l.furnished)) return false;
       return true;
     });
     if (sort === "asc") result = [...result].sort((a, b) => a.price - b.price);
     if (sort === "desc") result = [...result].sort((a, b) => b.price - a.price);
     if (sort === "recent") result = [...result].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return result;
-  }, [allListings, ville, universite, budgetMin, budgetMax, selectedTypes, sort]);
+  }, [allListings, ville, universite, budgetMin, budgetMax, selectedTypes, selectedFurnished, sort]);
 
   const perPage = 6;
   const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -68,6 +74,7 @@ export function Listings() {
     setBudgetMin(0);
     setBudgetMax(BUDGET_MAX);
     setSelectedTypes([]);
+    setSelectedFurnished([]);
     setPage(1);
   };
 
@@ -166,8 +173,8 @@ export function Listings() {
               <label key={t} className="flex items-center gap-2.5 text-sm text-gray-600">
                 <input
                   type="checkbox"
-                  checked={selectedTypes.includes(t)}
-                  onChange={() => toggleType(t)}
+                  checked={selectedFurnished.includes(t)}
+                  onChange={() => toggleFurnished(t)}
                   className="h-4 w-4 rounded accent-brand-blue"
                 />
                 {t}

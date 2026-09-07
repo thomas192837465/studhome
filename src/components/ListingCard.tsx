@@ -74,7 +74,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
             <FontAwesomeIcon icon={faGraduationCap} className="h-3 w-3" /> {listing.universities[0]}
           </div>
         )}
-        <p className="mt-2.5 text-sm text-gray-500">{listing.type}</p>
+        <p className="mt-2.5 text-sm text-gray-500">
+          {[listing.type, listing.furnished].filter(Boolean).join(" • ")}
+        </p>
       </Link>
     </div>
   );

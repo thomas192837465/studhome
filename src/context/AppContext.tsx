@@ -203,6 +203,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error: updateError } = await supabase.from("profiles").update(patch).eq("id", data.user.id);
     if (updateError) throw updateError;
     markTwoFactorVerifiedForSession(data.user.id);
+    // Best-effort: a failed bonus grant shouldn't block account creation —
+    // the RPC is idempotent so it's safe to leave for a later retry.
+    try {
+      await supabase.rpc("grant_signup_bonus");
+    } catch {
+      // ignore
+    }
     await finalizeAuth(data.user.id);
   };
 

@@ -5,6 +5,7 @@ export interface ListingRow {
   id: string;
   title: string;
   type: string;
+  furnished: string | null;
   city: string;
   quartier: string;
   address: string;
@@ -44,6 +45,7 @@ export function rowToListing(row: ListingRow): Listing {
     id: row.id,
     title: row.title,
     type: row.type,
+    furnished: row.furnished ?? "",
     city: row.city,
     quartier: row.quartier,
     address: row.address ?? "",

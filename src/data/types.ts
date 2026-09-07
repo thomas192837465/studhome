@@ -1,7 +1,7 @@
 export interface Transaction {
   id: string;
   date: string;
-  type: "Achat" | "Utilisation" | "Remboursement";
+  type: "Achat" | "Utilisation" | "Remboursement" | "Bonus";
   description: string;
   credits: number;
   amount: number;
@@ -17,6 +17,7 @@ export interface CreditPack {
   contacts: number;
   popular: boolean;
   tagline: string;
+  includesWelcomeBonus: boolean;
 }
 
 export interface User {
