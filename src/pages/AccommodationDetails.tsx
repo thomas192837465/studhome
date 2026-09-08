@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -79,6 +79,7 @@ export function AccommodationDetails() {
   const { submitSignalement } = useSignalements();
   const [activeImg, setActiveImg] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
+  const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -93,6 +94,13 @@ export function AccommodationDetails() {
   useEffect(() => {
     setActiveImg(0);
   }, [id]);
+
+  // Keeps the active thumbnail scrolled into view as the user clicks the
+  // main viewer's next/prev arrows, so the strip slides along instead of
+  // the extra photos staying permanently off-screen.
+  useEffect(() => {
+    thumbRefs.current[activeImg]?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  }, [activeImg]);
 
   useEffect(() => {
     if (id) recordView(id);
@@ -126,16 +134,6 @@ export function AccommodationDetails() {
     ...listing.gallery.map((src) => ({ type: "photo" as const, src })),
     ...(listing.videoUrl ? [{ type: "video" as const, src: listing.videoUrl }] : []),
   ];
-  // The video always gets a visible thumbnail slot (never buried behind the
-  // "+N" overlay) — only photos beyond what's left get collapsed into it.
-  const hasVideo = !!listing.videoUrl;
-  const photoCount = listing.gallery.length;
-  const visiblePhotoSlots = hasVideo ? Math.min(3, photoCount) : Math.min(4, photoCount);
-  const thumbIndexes = [
-    ...Array.from({ length: visiblePhotoSlots }, (_, i) => i),
-    ...(hasVideo ? [slides.length - 1] : []),
-  ];
-  const remainingCount = photoCount - visiblePhotoSlots;
   const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
   const publishedReviews = getPublishedForListing(listing.id);
   const avgRating = publishedReviews.length
@@ -263,37 +261,30 @@ export function AccommodationDetails() {
           </div>
 
           {slides.length > 1 && (
-            <div className="mt-3 grid grid-cols-4 gap-3">
-              {thumbIndexes.map((i, pos) => {
-                const s = slides[i];
-                const isLastPhotoSlot = pos === visiblePhotoSlots - 1;
-                const showOverlay = isLastPhotoSlot && remainingCount > 0;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => (showOverlay ? setShowGallery(true) : setActiveImg(i))}
-                    className={`relative aspect-square rounded-xl overflow-hidden bg-gray-100 ${
-                      activeImg === i ? "ring-2 ring-brand-blue" : ""
-                    }`}
-                  >
-                    {s.type === "video" ? (
-                      <>
-                        <video src={s.src} className="h-full w-full object-cover" muted />
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Play size={18} className="text-white fill-white" />
-                        </span>
-                      </>
-                    ) : (
-                      <WatermarkedImage src={s.src} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover" />
-                    )}
-                    {showOverlay && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm text-white font-display text-lg font-bold">
-                        +{remainingCount}
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+              {slides.map((s, i) => (
+                <button
+                  key={i}
+                  ref={(el) => {
+                    thumbRefs.current[i] = el;
+                  }}
+                  onClick={() => setActiveImg(i)}
+                  className={`relative aspect-square h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 ${
+                    activeImg === i ? "ring-2 ring-brand-blue" : ""
+                  }`}
+                >
+                  {s.type === "video" ? (
+                    <>
+                      <video src={s.src} className="h-full w-full object-cover" muted />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play size={18} className="text-white fill-white" />
                       </span>
-                    )}
-                  </button>
-                );
-              })}
+                    </>
+                  ) : (
+                    <WatermarkedImage src={s.src} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover" />
+                  )}
+                </button>
+              ))}
             </div>
           )}
 
