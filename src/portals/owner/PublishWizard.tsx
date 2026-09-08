@@ -90,7 +90,7 @@ export function PublishWizard() {
   const villeUniversitesOptions = useMemo(() => {
     if (!draft.ville.trim()) return universitesOptions;
     return universityEntries
-      .filter((u) => !u.city || u.city.toLowerCase() === draft.ville.trim().toLowerCase())
+      .filter((u) => u.city && u.city.toLowerCase() === draft.ville.trim().toLowerCase())
       .map((u) => u.name);
   }, [draft.ville, universitesOptions, universityEntries]);
   const [step, setStep] = useState(1);

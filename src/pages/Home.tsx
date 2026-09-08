@@ -85,7 +85,7 @@ export function Home() {
   const universiteOptions = useMemo(() => {
     if (!ville.trim()) return cameroonUniversities;
     return universityEntries
-      .filter((u) => !u.city || u.city.toLowerCase() === ville.trim().toLowerCase())
+      .filter((u) => u.city && u.city.toLowerCase() === ville.trim().toLowerCase())
       .map((u) => u.name);
   }, [ville, cameroonUniversities, universityEntries]);
   const [carouselIndex, setCarouselIndex] = useState(0);

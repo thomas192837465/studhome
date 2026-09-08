@@ -29,9 +29,12 @@ export function Autocomplete({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // The dropdown scrolls (max-h-56 overflow-y-auto below), so this cap only
+  // guards against rendering an absurd number of DOM nodes — it should
+  // never be low enough to visibly hide real matches from the list.
   const filtered = value
-    ? options.filter((o) => o.toLowerCase().includes(value.toLowerCase())).slice(0, 8)
-    : options.slice(0, 8);
+    ? options.filter((o) => o.toLowerCase().includes(value.toLowerCase())).slice(0, 100)
+    : options.slice(0, 100);
 
   const choose = (opt: string) => {
     onChange(opt);

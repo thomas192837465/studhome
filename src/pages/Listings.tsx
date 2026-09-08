@@ -25,7 +25,7 @@ export function Listings() {
   const universiteOptions = useMemo(() => {
     if (!ville.trim()) return cameroonUniversities;
     return universityEntries
-      .filter((u) => !u.city || u.city.toLowerCase() === ville.trim().toLowerCase())
+      .filter((u) => u.city && u.city.toLowerCase() === ville.trim().toLowerCase())
       .map((u) => u.name);
   }, [ville, cameroonUniversities, universityEntries]);
   const [budgetMin, setBudgetMin] = useState(0);
