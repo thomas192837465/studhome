@@ -123,6 +123,7 @@ export function PublishWizard() {
         caution: editingListing.cautionMonths || "1 mois",
         disponibleDate: "",
         contactPhone: editingListing.ownerPhone,
+        displayName: editingListing.ownerName,
       };
       updateDraft(asDraft);
       if (editingListing.latitude != null && editingListing.longitude != null) {
@@ -133,7 +134,7 @@ export function PublishWizard() {
       }
     } else {
       resetDraft();
-      updateDraft({ contactPhone: ownerUser.phone });
+      updateDraft({ contactPhone: ownerUser.phone, displayName: ownerUser.fullName });
     }
     initialized.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -774,6 +775,21 @@ export function PublishWizard() {
             </div>
             <div className="mt-3 rounded-xl border border-gray-100 p-5">
               <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-brand-navy">Nom à afficher aux étudiants *</span>
+                <input
+                  value={draft.displayName}
+                  onChange={(e) => updateDraft({ displayName: e.target.value })}
+                  placeholder="Ex : M. Njoya (Concierge)"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+                />
+                <span className="mt-1.5 block text-xs text-gray-400">
+                  Ce nom sera affiché sur l'annonce à la place du nom utilisé pour créer votre compte — utile si
+                  vous n'êtes pas le propriétaire (concierge, gestionnaire...).
+                </span>
+              </label>
+            </div>
+            <div className="mt-3 rounded-xl border border-gray-100 p-5">
+              <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-brand-navy">Confirmez votre numéro WhatsApp *</span>
                 <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-3 focus-within:ring-2 focus-within:ring-brand-blue/30">
                   <CameroonFlag className="h-3.5 w-5 rounded-sm shrink-0" />
@@ -888,7 +904,7 @@ export function PublishWizard() {
                       : step === 3
                         ? draft.photos.length === 0
                         : step === 5
-                          ? !draft.contactPhone.trim()
+                          ? !draft.contactPhone.trim() || !draft.displayName.trim()
                           : false
                 }
                 className="rounded-xl bg-brand-blue px-6 py-2.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

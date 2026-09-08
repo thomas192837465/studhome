@@ -70,6 +70,7 @@ export interface ListingDraft {
   caution: string;
   disponibleDate: string;
   contactPhone: string;
+  displayName: string;
 }
 
 export const emptyDraft: ListingDraft = {
@@ -92,6 +93,7 @@ export const emptyDraft: ListingDraft = {
   caution: "1 mois",
   disponibleDate: "",
   contactPhone: "",
+  displayName: "",
 };
 
 export function todayISO() {

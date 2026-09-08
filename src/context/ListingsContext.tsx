@@ -105,7 +105,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         caution_type: draft.cautionType,
         caution_months: draft.cautionType === "non_incluse" ? draft.caution : null,
         owner_id: owner.id,
-        owner_name: owner.name,
+        owner_name: draft.displayName || owner.name,
         owner_phone: draft.contactPhone || owner.phone,
         owner_email: owner.email ?? null,
         owner_avatar_img: owner.avatarImg ?? null,
@@ -151,6 +151,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
         caution_type: draft.cautionType,
         caution_months: draft.cautionType === "non_incluse" ? draft.caution : null,
         owner_phone: draft.contactPhone || undefined,
+        owner_name: draft.displayName || undefined,
       })
       .eq("id", id);
 

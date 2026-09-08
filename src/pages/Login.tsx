@@ -4,12 +4,12 @@ import { ChevronRight, GraduationCap, Building2, Mail, Lock, Eye, EyeOff, Check,
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHouse } from "@fortawesome/free-solid-svg-icons";
 import loginBedroom from "../assets/images/login-bedroom.jpg";
-import testimonialLinda from "../assets/images/testimonial-linda.jpg";
 import { Logo } from "../components/Logo";
 import { CameroonFlag } from "../components/CameroonFlag";
 import { WhatsAppIcon } from "../components/WhatsAppIcon";
 import { MfaChallengeForm } from "../components/MfaChallengeForm";
 import { useApp } from "../context/AppContext";
+import { useSiteContent } from "../context/SiteContentContext";
 import { supabase } from "../lib/supabase";
 import type { TwoFactorMethod } from "../lib/twoFactor";
 
@@ -35,6 +35,9 @@ export function Login() {
   const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, mfaPending, mfaMethod, mfaIdentifier, signup, login, completeMfaChallenge } = useApp();
+  const { testimonials } = useSiteContent();
+  const [testimonialIndex, setTestimonialIndex] = useState(0);
+  const activeTestimonial = testimonials[testimonialIndex % Math.max(testimonials.length, 1)];
 
   // Guarded to the "connexion" tab only: navigating away on signup happens
   // explicitly once the account is actually created (see
@@ -399,23 +402,38 @@ export function Login() {
           </div>
         </div>
 
-        <div className="absolute bottom-6 left-6 right-6 flex items-center gap-4">
-          <div className="flex-1 rounded-2xl bg-white p-4 shadow-lg">
-            <div className="flex items-center gap-2 mb-1.5">
-              <img src={testimonialLinda} alt="Linda" className="h-8 w-8 rounded-full object-cover" />
-              <div>
-                <p className="text-sm font-semibold text-brand-navy leading-tight">Linda</p>
-                <p className="text-[11px] text-gray-500">Université de Yaoundé I</p>
+        {activeTestimonial && (
+          <div className="absolute bottom-6 left-6 right-6 flex items-center gap-4">
+            <div className="flex-1 rounded-2xl bg-white p-4 shadow-lg">
+              <div className="flex items-center gap-2 mb-1.5">
+                {activeTestimonial.photoUrl ? (
+                  <img
+                    src={activeTestimonial.photoUrl}
+                    alt={activeTestimonial.name}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="h-8 w-8 rounded-full bg-gray-200" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-brand-navy leading-tight">{activeTestimonial.name}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {[activeTestimonial.university, activeTestimonial.city].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
               </div>
+              <p className="text-xs text-gray-500 line-clamp-2">"{activeTestimonial.quote}"</p>
             </div>
-            <p className="text-xs text-gray-500 line-clamp-2">
-              "Ce que j'ai préféré avec StudHome c'est le fait d'avoir des photos de plusieurs logements..."
-            </p>
+            {testimonials.length > 1 && (
+              <button
+                onClick={() => setTestimonialIndex((i) => (i + 1) % testimonials.length)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-lg"
+              >
+                <ChevronRight size={18} />
+              </button>
+            )}
           </div>
-          <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-lg">
-            <ChevronRight size={18} />
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -462,7 +462,7 @@ export function AccommodationDetails() {
           </div>
 
           <div className="rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-semibold text-brand-navy mb-3">Propriétaire</h3>
+            <h3 className="font-semibold text-brand-navy mb-3">Propriétaire / Concierge</h3>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar src={listing.ownerAvatarImg} name={listing.ownerName} className="h-11 w-11" />
