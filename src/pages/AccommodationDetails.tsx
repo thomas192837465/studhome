@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Lock, ShieldCheck, CheckCircle2, Check, Info, X, GraduationCap, Play } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Lock,
+  ShieldCheck,
+  CheckCircle2,
+  Check,
+  Info,
+  X,
+  GraduationCap,
+  Play,
+  LayoutGrid,
+} from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faCircleCheck, faStar as faStarSolid, faFlag } from "@fortawesome/free-solid-svg-icons";
 import { useListings } from "../context/ListingsContext";
@@ -64,6 +78,7 @@ export function AccommodationDetails() {
   const { getPublishedForListing, submitReview } = useReviews();
   const { submitSignalement } = useSignalements();
   const [activeImg, setActiveImg] = useState(0);
+  const [showGallery, setShowGallery] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -111,12 +126,8 @@ export function AccommodationDetails() {
     ...listing.gallery.map((src) => ({ type: "photo" as const, src })),
     ...(listing.videoUrl ? [{ type: "video" as const, src: listing.videoUrl }] : []),
   ];
-  const thumbIndexes =
-    slides.length <= 4
-      ? slides.map((_, i) => i)
-      : listing.videoUrl
-        ? [0, 1, 2, slides.length - 1]
-        : [0, 1, 2, 3];
+  const thumbIndexes = slides.map((_, i) => i).slice(0, 4);
+  const remainingCount = slides.length - thumbIndexes.length;
   const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
   const publishedReviews = getPublishedForListing(listing.id);
   const avgRating = publishedReviews.length
@@ -245,12 +256,14 @@ export function AccommodationDetails() {
 
           {slides.length > 1 && (
             <div className="mt-3 grid grid-cols-4 gap-3">
-              {thumbIndexes.map((i) => {
+              {thumbIndexes.map((i, pos) => {
                 const s = slides[i];
+                const isLastVisible = pos === thumbIndexes.length - 1;
+                const showOverlay = isLastVisible && remainingCount > 0;
                 return (
                   <button
                     key={i}
-                    onClick={() => setActiveImg(i)}
+                    onClick={() => (showOverlay ? setShowGallery(true) : setActiveImg(i))}
                     className={`relative aspect-square rounded-xl overflow-hidden bg-gray-100 ${
                       activeImg === i ? "ring-2 ring-brand-blue" : ""
                     }`}
@@ -265,10 +278,24 @@ export function AccommodationDetails() {
                     ) : (
                       <WatermarkedImage src={s.src} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover" />
                     )}
+                    {showOverlay && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm text-white font-display text-lg font-bold">
+                        +{remainingCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+          )}
+
+          {slides.length > 4 && (
+            <button
+              onClick={() => setShowGallery(true)}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-brand-navy hover:bg-gray-50 transition-colors"
+            >
+              <LayoutGrid size={15} /> Voir les {slides.length} photos
+            </button>
           )}
 
           <div className="mt-8">
@@ -601,6 +628,45 @@ export function AccommodationDetails() {
           )}
         </div>
       </div>
+
+      {showGallery && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
+          <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+            <p className="text-sm font-semibold text-white">{slides.length} photos</p>
+            <button
+              onClick={() => setShowGallery(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
+            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-3">
+              {slides.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setActiveImg(i);
+                    setShowGallery(false);
+                  }}
+                  className="relative aspect-square overflow-hidden rounded-xl bg-gray-800"
+                >
+                  {s.type === "video" ? (
+                    <>
+                      <video src={s.src} className="h-full w-full object-cover" muted />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play size={20} className="text-white fill-white" />
+                      </span>
+                    </>
+                  ) : (
+                    <WatermarkedImage src={s.src} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
