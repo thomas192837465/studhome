@@ -126,8 +126,16 @@ export function AccommodationDetails() {
     ...listing.gallery.map((src) => ({ type: "photo" as const, src })),
     ...(listing.videoUrl ? [{ type: "video" as const, src: listing.videoUrl }] : []),
   ];
-  const thumbIndexes = slides.map((_, i) => i).slice(0, 4);
-  const remainingCount = slides.length - thumbIndexes.length;
+  // The video always gets a visible thumbnail slot (never buried behind the
+  // "+N" overlay) — only photos beyond what's left get collapsed into it.
+  const hasVideo = !!listing.videoUrl;
+  const photoCount = listing.gallery.length;
+  const visiblePhotoSlots = hasVideo ? Math.min(3, photoCount) : Math.min(4, photoCount);
+  const thumbIndexes = [
+    ...Array.from({ length: visiblePhotoSlots }, (_, i) => i),
+    ...(hasVideo ? [slides.length - 1] : []),
+  ];
+  const remainingCount = photoCount - visiblePhotoSlots;
   const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
   const publishedReviews = getPublishedForListing(listing.id);
   const avgRating = publishedReviews.length
@@ -258,8 +266,8 @@ export function AccommodationDetails() {
             <div className="mt-3 grid grid-cols-4 gap-3">
               {thumbIndexes.map((i, pos) => {
                 const s = slides[i];
-                const isLastVisible = pos === thumbIndexes.length - 1;
-                const showOverlay = isLastVisible && remainingCount > 0;
+                const isLastPhotoSlot = pos === visiblePhotoSlots - 1;
+                const showOverlay = isLastPhotoSlot && remainingCount > 0;
                 return (
                   <button
                     key={i}
