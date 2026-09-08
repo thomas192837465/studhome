@@ -269,7 +269,7 @@ export function AccommodationDetails() {
                     thumbRefs.current[i] = el;
                   }}
                   onClick={() => setActiveImg(i)}
-                  className={`relative aspect-square h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 ${
+                  className={`relative aspect-square w-[calc(25%-9px)] shrink-0 overflow-hidden rounded-xl bg-gray-100 ${
                     activeImg === i ? "ring-2 ring-brand-blue" : ""
                   }`}
                 >
