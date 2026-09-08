@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Bed,
@@ -80,7 +80,19 @@ export function PublishWizard() {
   const { id: editId } = useParams();
   const { ownerId, ownerUser, draft, updateDraft, submitDraft, resetDraft } = useOwner();
   const { getListing, updateListing } = useListings();
-  const { universities: universitesOptions, cities: villes, proposeCity, proposeUniversity } = useSiteContent();
+  const {
+    universities: universitesOptions,
+    universityEntries,
+    cities: villes,
+    proposeCity,
+    proposeUniversity,
+  } = useSiteContent();
+  const villeUniversitesOptions = useMemo(() => {
+    if (!draft.ville.trim()) return universitesOptions;
+    return universityEntries
+      .filter((u) => !u.city || u.city.toLowerCase() === draft.ville.trim().toLowerCase())
+      .map((u) => u.name);
+  }, [draft.ville, universitesOptions, universityEntries]);
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -463,7 +475,7 @@ export function PublishWizard() {
                   <Autocomplete
                     value={uniInput}
                     onChange={setUniInput}
-                    options={universitesOptions.filter((u) => !draft.universities.includes(u))}
+                    options={villeUniversitesOptions.filter((u) => !draft.universities.includes(u))}
                     onSelect={addUniversityFromInput}
                     placeholder="+ Ajouter une université"
                     className="flex-1 min-w-0 text-sm focus:outline-none"
