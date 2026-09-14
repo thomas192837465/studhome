@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Splash } from "./pages/Splash";
 import { Home } from "./pages/Home";
@@ -92,9 +93,23 @@ function AdminPortalRoutes({ base }: { base: "admin" | "superadmin" }) {
   );
 }
 
+// React Router doesn't reset scroll position on navigation (it's an SPA —
+// the browser never sees a real page load), so without this, navigating
+// to a new page while scrolled down on the previous one leaves the new
+// page scrolled down too, most noticeable on mobile.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route path="/" element={<Splash />} />
       <Route path="/definir-mot-de-passe" element={<SetPassword />} />
       <Route element={<Layout />}>
@@ -141,7 +156,8 @@ function App() {
       {AdminPortalRoutes({ base: "superadmin" })}
 
       <Route path="*" element={<Navigate to="/home" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
