@@ -53,7 +53,9 @@ export function Login() {
     setError("");
   };
 
-  const identifier = method === "sms" ? phone : email;
+  // Twilio's WhatsApp API requires E.164 (+237...); the input only collects
+  // the local digits, with "+237" shown as a fixed prefix label beside it.
+  const identifier = method === "sms" ? `+237${phone.replace(/\s+/g, "")}` : email;
 
   const handleContinueToVerification = (e: React.FormEvent) => {
     e.preventDefault();

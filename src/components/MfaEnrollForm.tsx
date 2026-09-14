@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { ShieldCheck, Smartphone, Mail } from "lucide-react";
+import { ShieldCheck, Mail } from "lucide-react";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import { MfaChallengeForm } from "./MfaChallengeForm";
 import type { TwoFactorMethod } from "../lib/twoFactor";
 
 type Step = "choose" | "phone" | "code";
 
-// Lets the user pick SMS or email as their 2FA channel, collects a phone
-// number if needed, then hands off to MfaChallengeForm to send and verify a
-// code. Purely proves possession of the channel — it's the caller's job to
-// decide what "verified" means (write it to an existing profile from
-// settings, or bake it into a brand-new signup).
+// Lets the user pick WhatsApp or email as their 2FA channel, collects a
+// phone number if needed, then hands off to MfaChallengeForm to send and
+// verify a code. Purely proves possession of the channel — it's the
+// caller's job to decide what "verified" means (write it to an existing
+// profile from settings, or bake it into a brand-new signup).
 export function MfaEnrollForm({
   email,
   initialPhone = "",
@@ -25,7 +26,10 @@ export function MfaEnrollForm({
   const [method, setMethod] = useState<TwoFactorMethod>("sms");
   const [phone, setPhone] = useState(initialPhone);
 
-  const identifier = method === "email" ? email : phone;
+  // Twilio's WhatsApp API requires E.164 (+237...) — assume Cameroon if the
+  // user typed local digits without the country code.
+  const normalizedPhone = phone.trim().startsWith("+") ? phone.replace(/\s+/g, "") : `+237${phone.replace(/\s+/g, "")}`;
+  const identifier = method === "email" ? email : normalizedPhone;
 
   if (step === "code") {
     return <MfaChallengeForm method={method} identifier={identifier} onVerified={() => onVerified(method, identifier)} />;
@@ -49,9 +53,9 @@ export function MfaEnrollForm({
               className="flex flex-col items-start gap-2 rounded-xl border border-gray-200 p-4 text-left hover:border-brand-blue hover:bg-brand-blue-light transition-colors"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue">
-                <Smartphone size={18} />
+                <WhatsAppIcon size={18} />
               </span>
-              <span className="font-semibold text-brand-navy text-sm">Par SMS</span>
+              <span className="font-semibold text-brand-navy text-sm">Par WhatsApp</span>
               <span className="text-xs text-gray-500">Un code envoyé au numéro de votre choix.</span>
             </button>
             <button
@@ -86,7 +90,7 @@ export function MfaEnrollForm({
           className="space-y-3"
         >
           <label className="block">
-            <span className="mb-1.5 block text-sm text-gray-500">Numéro de téléphone</span>
+            <span className="mb-1.5 block text-sm text-gray-500">Numéro WhatsApp</span>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

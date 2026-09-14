@@ -10,8 +10,9 @@ type FactorState = "loading" | "none" | "enrolled";
 
 // Self-contained "enable/disable 2FA" block reused across the student,
 // owner and admin profile/settings pages. Reads/writes
-// profiles.two_factor_method directly (our own SMS/email 2FA, not
-// Supabase's paid MFA).
+// profiles.two_factor_method directly (our own WhatsApp/email 2FA, not
+// Supabase's paid MFA). The "sms" value name is a legacy holdover — the
+// channel actually used is WhatsApp, see api/twilio/send-code.js.
 export function MfaSecuritySection() {
   const [state, setState] = useState<FactorState>("loading");
   const [userId, setUserId] = useState("");
@@ -89,7 +90,7 @@ export function MfaSecuritySection() {
       {state === "enrolled" ? (
         <div className="rounded-xl border border-gray-100 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-brand-green">
-            <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Activée par {method === "email" ? "email" : "SMS"}
+            <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Activée par {method === "email" ? "email" : "WhatsApp"}
           </p>
           <p className="mt-1 text-xs text-gray-500">
             Un code vous sera demandé à chaque nouvelle session sur un appareil.

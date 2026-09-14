@@ -24,7 +24,9 @@ export function OwnerSignup() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  const identifier = method === "sms" ? phone : email;
+  // Twilio's WhatsApp API requires E.164 (+237...); the input only collects
+  // the local digits, with "+237" shown as a fixed prefix label beside it.
+  const identifier = method === "sms" ? `+237${phone.replace(/\s+/g, "")}` : email;
 
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();

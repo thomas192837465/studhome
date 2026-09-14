@@ -3,7 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { sendVerificationCode, checkVerificationCode, type TwoFactorMethod } from "../lib/twoFactor";
 
 // Shown right after a first-factor login (password) when the account has
-// SMS or email 2FA enrolled. The caller (Login.tsx / OwnerLogin.tsx /
+// WhatsApp or email 2FA enrolled. The caller (Login.tsx / OwnerLogin.tsx /
 // AdminLogin.tsx) knows the method + identifier from the profile it already
 // fetched, and is responsible for marking the session as fully
 // authenticated once onVerified() fires.
@@ -59,7 +59,7 @@ export function MfaChallengeForm({
     }
   };
 
-  const channelLabel = method === "email" ? "par email" : "par SMS";
+  const channelLabel = method === "email" ? "par email" : "par WhatsApp";
 
   return (
     <div className="mx-auto max-w-sm text-center">
