@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { normalizeText } from "../lib/normalizeText";
 
 export function Autocomplete({
   value,
@@ -32,8 +33,9 @@ export function Autocomplete({
   // The dropdown scrolls (max-h-56 overflow-y-auto below), so this cap only
   // guards against rendering an absurd number of DOM nodes — it should
   // never be low enough to visibly hide real matches from the list.
-  const filtered = value
-    ? options.filter((o) => o.toLowerCase().includes(value.toLowerCase())).slice(0, 100)
+  const normalizedValue = normalizeText(value);
+  const filtered = normalizedValue
+    ? options.filter((o) => normalizeText(o).includes(normalizedValue)).slice(0, 100)
     : options.slice(0, 100);
 
   const choose = (opt: string) => {

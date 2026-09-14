@@ -30,6 +30,7 @@ import { resizeImageFile } from "../../lib/resizeImage";
 import { getVideoDuration } from "../../lib/validateVideo";
 import { uploadListingVideo } from "../../lib/uploadPhoto";
 import { getCurrentPosition, reverseGeocode } from "../../lib/geolocation";
+import { normalizeText } from "../../lib/normalizeText";
 import { Autocomplete } from "../../components/Autocomplete";
 import { CameroonFlag } from "../../components/CameroonFlag";
 import { useSiteContent } from "../../context/SiteContentContext";
@@ -89,8 +90,9 @@ export function PublishWizard() {
   } = useSiteContent();
   const villeUniversitesOptions = useMemo(() => {
     if (!draft.ville.trim()) return universitesOptions;
+    const normalizedVille = normalizeText(draft.ville);
     return universityEntries
-      .filter((u) => u.city && u.city.toLowerCase() === draft.ville.trim().toLowerCase())
+      .filter((u) => u.city && normalizeText(u.city) === normalizedVille)
       .map((u) => u.name);
   }, [draft.ville, universitesOptions, universityEntries]);
   const [step, setStep] = useState(1);

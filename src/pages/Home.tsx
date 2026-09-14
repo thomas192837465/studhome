@@ -27,6 +27,7 @@ import { WatermarkedImage } from "../components/WatermarkedImage";
 import { Autocomplete } from "../components/Autocomplete";
 import { useListings } from "../context/ListingsContext";
 import { useSiteContent } from "../context/SiteContentContext";
+import { normalizeText } from "../lib/normalizeText";
 
 const statIcons: Record<string, typeof faUserGroup> = {
   users: faUserGroup,
@@ -84,8 +85,9 @@ export function Home() {
   const filledCitySlots = cityGrid.filter((s) => s.city);
   const universiteOptions = useMemo(() => {
     if (!ville.trim()) return cameroonUniversities;
+    const normalizedVille = normalizeText(ville);
     return universityEntries
-      .filter((u) => u.city && u.city.toLowerCase() === ville.trim().toLowerCase())
+      .filter((u) => u.city && normalizeText(u.city) === normalizedVille)
       .map((u) => u.name);
   }, [ville, cameroonUniversities, universityEntries]);
   const [carouselIndex, setCarouselIndex] = useState(0);

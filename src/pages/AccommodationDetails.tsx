@@ -206,7 +206,7 @@ export function AccommodationDetails() {
               <p className="text-xs text-green-700">Vous pouvez maintenant contacter le propriétaire.</p>
             </div>
           </div>
-          <button onClick={() => setShowToast(false)} className="text-green-700">
+          <button type="button" onClick={() => setShowToast(false)} className="text-green-700">
             <X size={16} />
           </button>
         </div>
@@ -237,6 +237,7 @@ export function AccommodationDetails() {
               <ShieldCheck size={13} /> Vérifié
             </span>
             <button
+              type="button"
               onClick={handleToggleFavorite}
               className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95"
             >
@@ -245,12 +246,14 @@ export function AccommodationDetails() {
             {slides.length > 1 && (
               <>
                 <button
+                  type="button"
                   onClick={() => setActiveImg((i) => (i - 1 + slides.length) % slides.length)}
                   className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveImg((i) => (i + 1) % slides.length)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90"
                 >
@@ -265,6 +268,7 @@ export function AccommodationDetails() {
               {slides.map((s, i) => (
                 <button
                   key={i}
+                  type="button"
                   ref={(el) => {
                     thumbRefs.current[i] = el;
                   }}
@@ -290,6 +294,7 @@ export function AccommodationDetails() {
 
           {slides.length > 4 && (
             <button
+              type="button"
               onClick={() => setShowGallery(true)}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-brand-navy hover:bg-gray-50 transition-colors"
             >
@@ -479,6 +484,7 @@ export function AccommodationDetails() {
 
             {unlocked && (
               <button
+                type="button"
                 disabled
                 className="mt-5 w-full cursor-default rounded-xl bg-brand-green-light py-3 font-semibold text-center text-green-700"
               >
@@ -566,6 +572,7 @@ export function AccommodationDetails() {
               </form>
             ) : (
               <button
+                type="button"
                 onClick={() => (isAuthenticated ? setShowReportForm(true) : navigate("/connexion"))}
                 className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500"
               >
@@ -574,7 +581,16 @@ export function AccommodationDetails() {
             )}
           </div>
 
-          {!unlocked && (
+          {unlocked ? (
+            <div className="rounded-2xl bg-brand-green-light border border-green-200 p-5 text-center">
+              <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-green-700">
+                <CheckCircle2 size={16} /> Annonce débloquée
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Vous avez accès au numéro du propriétaire et à la localisation exacte.
+              </p>
+            </div>
+          ) : (
             <div className="rounded-2xl bg-brand-orange-light border border-brand-orange/20 overflow-hidden">
               <div className="p-5 text-center">
                 <h3 className="font-display text-lg font-bold text-brand-orange-dark leading-snug">
@@ -603,6 +619,7 @@ export function AccommodationDetails() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={handleUnlock}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange py-3 font-semibold text-white hover:bg-brand-orange-dark transition-colors"
                 >
@@ -633,6 +650,7 @@ export function AccommodationDetails() {
           <div className="flex items-center justify-between px-4 py-3 sm:px-6">
             <p className="text-sm font-semibold text-white">{slides.length} photos</p>
             <button
+              type="button"
               onClick={() => setShowGallery(false)}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
             >
@@ -644,6 +662,7 @@ export function AccommodationDetails() {
               {slides.map((s, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => {
                     setActiveImg(i);
                     setShowGallery(false);

@@ -8,6 +8,7 @@ import { useSiteContent } from "../context/SiteContentContext";
 import { ListingCard } from "../components/ListingCard";
 import { Autocomplete } from "../components/Autocomplete";
 import { DualRangeSlider } from "../components/DualRangeSlider";
+import { normalizeText } from "../lib/normalizeText";
 
 const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation"] as const;
 const equipementFilterOptions = ["Meublé", "Non meublé"] as const;
@@ -24,8 +25,9 @@ export function Listings() {
   const [universite, setUniversite] = useState(params.get("universite") ?? "");
   const universiteOptions = useMemo(() => {
     if (!ville.trim()) return cameroonUniversities;
+    const normalizedVille = normalizeText(ville);
     return universityEntries
-      .filter((u) => u.city && u.city.toLowerCase() === ville.trim().toLowerCase())
+      .filter((u) => u.city && normalizeText(u.city) === normalizedVille)
       .map((u) => u.name);
   }, [ville, cameroonUniversities, universityEntries]);
   const [budgetMin, setBudgetMin] = useState(0);
@@ -45,8 +47,8 @@ export function Listings() {
 
   const filtered = useMemo(() => {
     let result = allListings.filter((l) => {
-      if (ville && !l.city.toLowerCase().includes(ville.toLowerCase())) return false;
-      if (universite && !l.universities.some((u) => u.toLowerCase().includes(universite.toLowerCase()))) return false;
+      if (ville && !normalizeText(l.city).includes(normalizeText(ville))) return false;
+      if (universite && !l.universities.some((u) => normalizeText(u).includes(normalizeText(universite)))) return false;
       if (l.price < budgetMin || l.price > budgetMax) return false;
       if (selectedTypes.length && !selectedTypes.includes(l.type)) return false;
       if (selectedFurnished.length && !selectedFurnished.includes(l.furnished)) return false;
