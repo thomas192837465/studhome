@@ -12,7 +12,7 @@ import { normalizeText } from "../lib/normalizeText";
 
 const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation"] as const;
 const equipementFilterOptions = ["Meublé", "Non meublé"] as const;
-const BUDGET_MAX = 3000000;
+const BUDGET_MAX = 900000;
 
 type SortKey = "recent" | "asc" | "desc";
 
