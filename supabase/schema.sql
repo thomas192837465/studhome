@@ -843,3 +843,45 @@ insert into public.cities (name) values
   ('Edéa'),
   ('Foumban')
 on conflict (name) do nothing;
+
+-- ============================================================================
+-- Migration 16: admin can pin a listing to the top of the "Plus récents"
+-- sort on the Listings page, even when other listings are actually newer.
+-- Reuses the existing wide-open listings_update_all_temp policy — no new
+-- RLS needed, same as updateListingLocation/publishListing.
+-- ============================================================================
+
+alter table public.listings add column if not exists pinned boolean not null default false;
+
+-- ============================================================================
+-- Migration 17: "notify me" city alerts for the empty Listings state — a
+-- student can ask to be told when a listing appears in a city that
+-- currently has none. Public insert/select (no auth required to browse
+-- listings), matching this app's existing pre-auth-hardening tables.
+-- Sending the actual notification once a listing is published in that city
+-- is not wired up yet — this only stores the subscription and powers the
+-- "N étudiants intéressés" count shown on the empty state.
+-- ============================================================================
+
+create table if not exists public.city_alerts (
+  id uuid primary key default gen_random_uuid(),
+  city text not null,
+  email text not null,
+  created_at timestamptz not null default now(),
+  unique (city, email)
+);
+
+create index if not exists city_alerts_city_idx on public.city_alerts (city);
+
+alter table public.city_alerts enable row level security;
+
+drop policy if exists "city_alerts_select_all_temp" on public.city_alerts;
+drop policy if exists "city_alerts_insert_all_temp" on public.city_alerts;
+drop policy if exists "city_alerts_admin_delete" on public.city_alerts;
+
+create policy "city_alerts_select_all_temp" on public.city_alerts
+  for select using (true);
+create policy "city_alerts_insert_all_temp" on public.city_alerts
+  for insert with check (true);
+create policy "city_alerts_admin_delete" on public.city_alerts
+  for delete using (public.is_admin());
