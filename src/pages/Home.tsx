@@ -319,25 +319,6 @@ export function Home() {
         </Link>
       </section>
 
-      {/* Parrainage banner */}
-      <section className="mx-auto max-w-6xl px-6 mt-20">
-        <div className="relative overflow-hidden rounded-3xl bg-brand-orange px-8 sm:px-12 py-10 text-white">
-          <div className="absolute -right-4 top-4 text-6xl opacity-30">$</div>
-          <div className="absolute right-16 bottom-4 text-4xl opacity-30">$</div>
-          <div className="absolute right-32 top-10 text-3xl opacity-20">$</div>
-          <h2 className="font-display text-2xl font-bold max-w-md">Parraine un ami et gagne des crédits !</h2>
-          <p className="mt-2 max-w-md text-white/90 text-sm">
-            Vous recevrez des crédits, votre ami aussi. Plus vous parrainez, plus vous accumulez.
-          </p>
-          <Link
-            to="/parrainage"
-            className="mt-5 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-brand-orange-dark hover:bg-gray-50 transition-colors"
-          >
-            Découvrez le parrainage
-          </Link>
-        </div>
-      </section>
-
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-6 mt-20">
         <h2 className="font-display text-2xl font-bold text-brand-navy text-center mb-10">Comment ça marche ?</h2>
