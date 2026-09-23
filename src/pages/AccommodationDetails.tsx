@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Play,
   LayoutGrid,
+  Footprints,
 } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLocationDot, faCircleCheck, faStar as faStarSolid, faFlag } from "@fortawesome/free-solid-svg-icons";
@@ -21,10 +22,13 @@ import { useListings } from "../context/ListingsContext";
 import { useApp } from "../context/AppContext";
 import { useReviews } from "../context/ReviewsContext";
 import { useSignalements } from "../context/SignalementsContext";
+import { useSiteContent } from "../context/SiteContentContext";
 import { MapPreview } from "../components/MapPreview";
 import { Avatar } from "../components/Avatar";
 import { StarRating } from "../components/StarRating";
 import { WatermarkedImage } from "../components/WatermarkedImage";
+import { geocodeAddress } from "../lib/geolocation";
+import { estimateWalkingMinutes, formatWalkingTime } from "../lib/distance";
 
 const reportReasons = [
   "Annonce frauduleuse",
@@ -77,6 +81,8 @@ export function AccommodationDetails() {
   const { isAuthenticated, authLoading, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
   const { getPublishedForListing, submitReview } = useReviews();
   const { submitSignalement } = useSignalements();
+  const { universityEntries } = useSiteContent();
+  const [walkMinutes, setWalkMinutes] = useState<Record<string, number>>({});
   const [activeImg, setActiveImg] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -106,6 +112,34 @@ export function AccommodationDetails() {
     if (id) recordView(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Estimated walking distance to each nearby university: geocodes the
+  // university (name + its known city) via OpenStreetMap and compares it to
+  // the listing's own coordinates. No routing API involved — this is a
+  // straight-line estimate padded for real street detours, not a routed
+  // path, so it's always shown as "~N min".
+  useEffect(() => {
+    if (!listing || listing.latitude == null || listing.longitude == null) {
+      setWalkMinutes({});
+      return;
+    }
+    let cancelled = false;
+    const origin = { latitude: listing.latitude, longitude: listing.longitude };
+    (async () => {
+      const results = await Promise.all(
+        listing.universities.map(async (name) => {
+          const city = universityEntries.find((u) => u.name === name)?.city;
+          const coords = await geocodeAddress([name, city, "Cameroun"].filter(Boolean).join(", "));
+          return coords ? ([name, estimateWalkingMinutes(origin, coords)] as const) : null;
+        }),
+      );
+      if (cancelled) return;
+      setWalkMinutes(Object.fromEntries(results.filter((r): r is readonly [string, number] => r !== null)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listing, universityEntries]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -316,10 +350,17 @@ export function AccommodationDetails() {
                 {listing.universities.map((u, i) => (
                   <div
                     key={u}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm ${i % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+                    className={`flex items-center justify-between gap-2 px-4 py-3 text-sm ${i % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
                   >
-                    <GraduationCap size={15} className="text-brand-blue shrink-0" />
-                    <span className="text-gray-700">{u}</span>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <GraduationCap size={15} className="text-brand-blue shrink-0" />
+                      <span className="text-gray-700 truncate">{u}</span>
+                    </span>
+                    {walkMinutes[u] != null && (
+                      <span className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                        <Footprints size={13} className="text-gray-400" /> {formatWalkingTime(walkMinutes[u])}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -529,7 +570,7 @@ export function AccommodationDetails() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+          <div className={reportSubmitted || showReportForm ? "rounded-2xl border border-gray-100 p-5 shadow-sm text-center" : ""}>
             {reportSubmitted ? (
               <p className="flex items-center justify-center gap-1.5 text-sm text-brand-green font-medium">
                 <FontAwesomeIcon icon={faCircleCheck} className="h-4 w-4" /> Signalement envoyé, notre équipe va l'examiner.
@@ -574,9 +615,17 @@ export function AccommodationDetails() {
               <button
                 type="button"
                 onClick={() => (isAuthenticated ? setShowReportForm(true) : navigate("/connexion"))}
-                className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500"
+                className="group flex w-full items-center gap-3 rounded-2xl border border-gray-100 px-4 py-3.5 text-left shadow-sm transition-colors hover:border-brand-orange hover:bg-brand-orange-light/40"
               >
-                <FontAwesomeIcon icon={faFlag} className="h-3 w-3" /> Signaler ce logement
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-orange-light text-brand-orange">
+                  <FontAwesomeIcon icon={faFlag} className="h-4 w-4" />
+                </span>
+                <span className="hidden sm:block">
+                  <span className="block text-xs text-gray-500">Un problème avec cette annonce ?</span>
+                  <span className="block text-sm font-semibold text-brand-orange">Signaler ce logement</span>
+                </span>
+                <span className="text-sm font-semibold text-brand-navy sm:hidden">Signaler un problème</span>
+                <ChevronRight size={16} className="ml-auto shrink-0 text-gray-300 sm:hidden" />
               </button>
             )}
           </div>

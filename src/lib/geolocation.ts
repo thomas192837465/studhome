@@ -44,3 +44,29 @@ export async function reverseGeocode({ latitude, longitude }: Coordinates): Prom
   const label = [area, city].filter(Boolean).join(", ") || data?.display_name || "Position inconnue";
   return { area, city, label };
 }
+
+// In-memory only (per browser tab) — good enough to avoid re-geocoding the
+// same university repeatedly while the student browses several listings in
+// one session, without needing a database column/migration just for this.
+const geocodeCache = new Map<string, Coordinates | null>();
+
+export async function geocodeAddress(query: string): Promise<Coordinates | null> {
+  const key = query.trim().toLowerCase();
+  if (!key) return null;
+  if (geocodeCache.has(key)) return geocodeCache.get(key) ?? null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("geocode failed");
+    const data = await res.json();
+    const first = Array.isArray(data) ? data[0] : null;
+    const result: Coordinates | null =
+      first && first.lat && first.lon ? { latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) } : null;
+    geocodeCache.set(key, result);
+    return result;
+  } catch {
+    geocodeCache.set(key, null);
+    return null;
+  }
+}
