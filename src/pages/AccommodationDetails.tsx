@@ -118,6 +118,13 @@ export function AccommodationDetails() {
   // the listing's own coordinates. No routing API involved — this is a
   // straight-line estimate padded for real street detours, not a routed
   // path, so it's always shown as "~N min".
+  //
+  // Geocoded one at a time, not in parallel: Nominatim's usage policy caps
+  // requests at ~1/second, and firing them all at once for a listing with
+  // several universities got the later ones silently rate-limited (no
+  // distance shown for anything past the first). Results are applied as
+  // each one resolves so they appear progressively instead of all waiting
+  // on the slowest/last request.
   useEffect(() => {
     if (!listing || listing.latitude == null || listing.longitude == null) {
       setWalkMinutes({});
@@ -125,16 +132,22 @@ export function AccommodationDetails() {
     }
     let cancelled = false;
     const origin = { latitude: listing.latitude, longitude: listing.longitude };
+    setWalkMinutes({});
     (async () => {
-      const results = await Promise.all(
-        listing.universities.map(async (name) => {
-          const city = universityEntries.find((u) => u.name === name)?.city;
-          const coords = await geocodeAddress([name, city, "Cameroun"].filter(Boolean).join(", "));
-          return coords ? ([name, estimateWalkingMinutes(origin, coords)] as const) : null;
-        }),
-      );
-      if (cancelled) return;
-      setWalkMinutes(Object.fromEntries(results.filter((r): r is readonly [string, number] => r !== null)));
+      for (const name of listing.universities) {
+        if (cancelled) return;
+        const city = universityEntries.find((u) => u.name === name)?.city;
+        const startedAt = Date.now();
+        const coords = await geocodeAddress([name, city, "Cameroun"].filter(Boolean).join(", "));
+        if (cancelled) return;
+        if (coords) {
+          const minutes = estimateWalkingMinutes(origin, coords);
+          setWalkMinutes((prev) => ({ ...prev, [name]: minutes }));
+        }
+        // Skip the pacing delay when the result came from the in-memory
+        // cache (near-instant) — only real network calls need spacing out.
+        if (Date.now() - startedAt > 50) await new Promise((r) => setTimeout(r, 1100));
+      }
     })();
     return () => {
       cancelled = true;
