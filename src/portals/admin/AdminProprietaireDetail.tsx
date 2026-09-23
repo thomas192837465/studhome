@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Mail, Phone, MapPin, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useListings } from "../../context/ListingsContext";
+import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useBasePath } from "./adminUi";
 import { listingStatusClass } from "../../data/listingStatus";
 
@@ -18,9 +19,13 @@ interface OwnerProfile {
 export function AdminProprietaireDetail() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
+  const navigate = useNavigate();
   const { getListingsByOwner } = useListings();
+  const { logAction } = useAdminPortal();
   const [profile, setProfile] = useState<OwnerProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -48,6 +53,37 @@ export function AdminProprietaireDetail() {
 
   const listings = id ? getListingsByOwner(id) : [];
 
+  const handleDelete = async () => {
+    if (!profile) return;
+    if (
+      !window.confirm(
+        `Supprimer définitivement le compte de ${profile.name} ? Ses ${listings.length} annonce(s) seront aussi supprimées. Cette action est irréversible.`,
+      )
+    )
+      return;
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Session expirée, reconnectez-vous.");
+
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: profile.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de la suppression");
+
+      await logAction("Suppression de compte propriétaire", profile.email || profile.name, `${listings.length} annonce(s) supprimée(s)`);
+      navigate(`${base}/proprietaires`, { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Échec de la suppression");
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-gray-400">Chargement...</div>;
 
   if (!profile) {
@@ -63,9 +99,20 @@ export function AdminProprietaireDetail() {
 
   return (
     <div className="p-6 sm:p-10 max-w-4xl">
-      <Link to={`${base}/proprietaires`} className="inline-flex items-center gap-2 text-sm font-medium text-brand-navy mb-5">
-        <ArrowLeft size={16} /> Retour aux propriétaires
-      </Link>
+      <div className="flex items-center justify-between mb-5">
+        <Link to={`${base}/proprietaires`} className="inline-flex items-center gap-2 text-sm font-medium text-brand-navy">
+          <ArrowLeft size={16} /> Retour aux propriétaires
+        </Link>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
+        >
+          <Trash2 size={13} /> {deleting ? "Suppression..." : "Supprimer ce compte"}
+        </button>
+      </div>
+      {deleteError && <p className="mb-3 text-sm text-red-500">{deleteError}</p>}
 
       <div className="rounded-2xl border border-gray-100 p-6 flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-4">

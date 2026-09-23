@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, MapPin, Check, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MapPin, Check, X, Pin, PinOff } from "lucide-react";
 import { useListings } from "../../context/ListingsContext";
 import { useAdminPortal } from "../../context/AdminPortalContext";
 import { useSiteContent } from "../../context/SiteContentContext";
@@ -37,7 +37,7 @@ export function AnnonceVerification() {
   const { id } = useParams();
   const base = useBasePath(useLocation().pathname);
   const navigate = useNavigate();
-  const { getListing, publishListing, refuseListing, updateListingLocation } = useListings();
+  const { getListing, publishListing, refuseListing, updateListingLocation, updateListingPinned } = useListings();
   const { logAction } = useAdminPortal();
   const { pendingCities, pendingUniversities, approveCity, rejectCity, approveUniversity, rejectUniversity } =
     useSiteContent();
@@ -48,6 +48,7 @@ export function AnnonceVerification() {
   const [locInitialized, setLocInitialized] = useState(false);
   const [locSaving, setLocSaving] = useState(false);
   const [locSaved, setLocSaved] = useState(false);
+  const [pinning, setPinning] = useState(false);
 
   useEffect(() => {
     if (listing && !locInitialized) {
@@ -95,6 +96,16 @@ export function AnnonceVerification() {
       status: "publiee",
     });
     navigate(`${base}/annonces/${listing.id}/publiee`);
+  };
+
+  const handleTogglePinned = async () => {
+    setPinning(true);
+    try {
+      await updateListingPinned(listing.id, !listing.pinned);
+      await logAction(listing.pinned ? "Désépinglage d'annonce" : "Épinglage d'annonce", listing.title);
+    } finally {
+      setPinning(false);
+    }
   };
 
   const handleRefuse = async () => {
@@ -308,6 +319,29 @@ export function AnnonceVerification() {
               </li>
             ))}
           </ul>
+
+          <button
+            type="button"
+            onClick={handleTogglePinned}
+            disabled={pinning}
+            className={`mb-6 flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left text-sm transition-colors disabled:opacity-60 ${
+              listing.pinned
+                ? "border-brand-blue bg-brand-blue-light/40 text-brand-blue"
+                : "border-gray-200 text-gray-600 hover:border-brand-blue"
+            }`}
+          >
+            {listing.pinned ? <Pin size={16} className="shrink-0" /> : <PinOff size={16} className="shrink-0 text-gray-400" />}
+            <span>
+              <span className="block font-semibold">
+                {listing.pinned ? "Épinglée en tête des « Plus récents »" : "Épingler en tête des « Plus récents »"}
+              </span>
+              <span className="block text-xs opacity-80">
+                {listing.pinned
+                  ? "Cliquez pour retirer — elle sera de nouveau triée par date."
+                  : "Toujours affichée en premier sur le filtre « Plus récents », même si d'autres annonces sont plus récentes."}
+              </span>
+            </span>
+          </button>
 
           <h3 className="font-semibold text-brand-navy text-sm mb-3">Actions</h3>
           <div className="space-y-2.5">

@@ -24,6 +24,7 @@ interface ListingsContextValue {
   updateListing: (id: string, draft: ListingDraft, ownerId: string) => Promise<void>;
   publishListing: (id: string) => Promise<void>;
   updateListingLocation: (id: string, latitude: number, longitude: number) => Promise<void>;
+  updateListingPinned: (id: string, pinned: boolean) => Promise<void>;
   refuseListing: (id: string) => Promise<void>;
   requestModification: (id: string, message: string, reason: string) => Promise<void>;
   recordView: (id: string) => Promise<void>;
@@ -170,6 +171,12 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     await fetchListings();
   };
 
+  const updateListingPinned = async (id: string, pinned: boolean) => {
+    const { error } = await supabase.from("listings").update({ pinned }).eq("id", id);
+    if (error) throw error;
+    await fetchListings();
+  };
+
   const refuseListing = async (id: string) => {
     await supabase.from("listings").update({ status: "Refusée" }).eq("id", id);
     await fetchListings();
@@ -220,6 +227,7 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
       updateListing,
       publishListing,
       updateListingLocation,
+      updateListingPinned,
       refuseListing,
       requestModification,
       recordView,

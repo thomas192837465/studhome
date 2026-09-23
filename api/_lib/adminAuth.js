@@ -32,3 +32,25 @@ export async function requireSuperadmin(req, serviceClient) {
   if (!profile || profile.role !== "superadmin") return null;
   return profile;
 }
+
+// Same as requireSuperadmin but also accepts the regular "admin" role —
+// for actions any admin should be able to do (moderating owner/student
+// accounts), as opposed to admin-hierarchy actions (inviting/revoking other
+// admins) which stay superadmin-only.
+export async function requireAdmin(req, serviceClient) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
+  if (userError || !userData.user) return null;
+
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("id, role, first_name, last_name, email")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+
+  if (!profile || (profile.role !== "admin" && profile.role !== "superadmin")) return null;
+  return profile;
+}

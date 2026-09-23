@@ -23,6 +23,7 @@ export interface ListingRow {
   submitted_date: string;
   created_at: string;
   unlock_cost: number;
+  pinned: boolean | null;
   owner_id: string;
   owner_name: string;
   owner_phone: string;
@@ -63,6 +64,7 @@ export function rowToListing(row: ListingRow): Listing {
     submittedDate: row.submitted_date,
     createdAt: row.created_at,
     unlockCost: row.unlock_cost,
+    pinned: row.pinned ?? false,
     ownerId: row.owner_id,
     ownerName: row.owner_name,
     ownerPhone: row.owner_phone,

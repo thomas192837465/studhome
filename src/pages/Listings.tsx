@@ -8,6 +8,7 @@ import { useSiteContent } from "../context/SiteContentContext";
 import { ListingCard } from "../components/ListingCard";
 import { Autocomplete } from "../components/Autocomplete";
 import { DualRangeSlider } from "../components/DualRangeSlider";
+import { EmptyListingsState } from "../components/EmptyListingsState";
 import { normalizeText } from "../lib/normalizeText";
 
 const typeOptions = ["Chambre", "Studio", "Appartement", "Colocation"] as const;
@@ -56,7 +57,11 @@ export function Listings() {
     });
     if (sort === "asc") result = [...result].sort((a, b) => a.price - b.price);
     if (sort === "desc") result = [...result].sort((a, b) => b.price - a.price);
-    if (sort === "recent") result = [...result].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    if (sort === "recent")
+      result = [...result].sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return a.createdAt < b.createdAt ? 1 : -1;
+      });
     return result;
   }, [allListings, ville, universite, budgetMin, budgetMax, selectedTypes, selectedFurnished, sort]);
 
@@ -208,11 +213,15 @@ export function Listings() {
           </div>
 
           {paged.length === 0 ? (
-            <p className="text-gray-400 text-sm py-16 text-center">
-              {allListings.length === 0
-                ? "Aucun logement publié pour l'instant. Revenez bientôt !"
-                : "Aucun logement ne correspond à votre recherche."}
-            </p>
+            ville.trim() ? (
+              <EmptyListingsState city={ville.trim()} />
+            ) : (
+              <p className="text-gray-400 text-sm py-16 text-center">
+                {allListings.length === 0
+                  ? "Aucun logement publié pour l'instant. Revenez bientôt !"
+                  : "Aucun logement ne correspond à votre recherche."}
+              </p>
+            )
           ) : (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {paged.map((l) => (

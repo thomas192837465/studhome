@@ -29,6 +29,7 @@ export interface Listing {
   submittedDate: string;
   createdAt: string;
   unlockCost: number;
+  pinned: boolean;
 
   ownerId: string;
   ownerName: string;
