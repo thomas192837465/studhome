@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, ShieldCheck } from "lucide-react";
+import { useSiteContent } from "../context/SiteContentContext";
 
 function WhatsAppIcon({ size = 22 }: { size?: number }) {
   return (
@@ -17,7 +18,9 @@ function WhatsAppIcon({ size = 22 }: { size?: number }) {
 }
 
 export function WhatsAppWidget() {
+  const { whatsappSupportNumber } = useSiteContent();
   const [open, setOpen] = useState(false);
+  const digits = whatsappSupportNumber.replace(/\D/g, "");
 
   return (
     <>
@@ -60,10 +63,13 @@ export function WhatsAppWidget() {
               </p>
             </div>
             <a
-              href="https://wa.me/999999999"
+              href={digits ? `https://wa.me/${digits}` : undefined}
               target="_blank"
               rel="noreferrer"
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-green py-3 font-semibold text-white hover:bg-green-700 transition-colors"
+              aria-disabled={!digits}
+              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white transition-colors ${
+                digits ? "bg-brand-green hover:bg-green-700" : "bg-gray-300 pointer-events-none"
+              }`}
             >
               Continuer sur WhatsApp
             </a>

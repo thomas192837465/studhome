@@ -45,6 +45,8 @@ export function AdminSettings() {
     addTestimonial,
     removeTestimonial,
     moveTestimonial,
+    whatsappSupportNumber,
+    updateWhatsappSupportNumber,
   } = useSiteContent();
   const { listings } = useListings();
   const publishedListings = listings.filter((l) => l.status === "Publiée");
@@ -160,6 +162,14 @@ export function AdminSettings() {
         <h2 className="font-semibold text-brand-navy mb-1">Mon compte</h2>
         <p className="text-sm text-gray-500 mb-4">Sécurisez votre propre accès administrateur.</p>
         <MfaSecuritySection />
+      </section>
+
+      <section className="max-w-lg">
+        <h2 className="font-semibold text-brand-navy mb-1">Numéro WhatsApp support</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Utilisé par le bouton "Besoin d'aide ?" flottant sur tout le site.
+        </p>
+        <WhatsAppNumberEditor number={whatsappSupportNumber} onSave={updateWhatsappSupportNumber} />
       </section>
 
       <section>
@@ -769,6 +779,52 @@ function StatEditor({
         </button>
       )}
       {saved && <p className="mt-2 text-center text-xs font-medium text-brand-green">Enregistré</p>}
+    </div>
+  );
+}
+
+function WhatsAppNumberEditor({
+  number,
+  onSave,
+}: {
+  number: string;
+  onSave: (value: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(number);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const dirty = value.trim() !== number;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(value);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-xs">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="+33 7 58 91 17 71"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+      />
+      {dirty && (
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="mt-2 rounded-lg bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
+        >
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      )}
+      {saved && <p className="mt-2 text-xs font-medium text-brand-green">Enregistré</p>}
     </div>
   );
 }

@@ -885,3 +885,34 @@ create policy "city_alerts_insert_all_temp" on public.city_alerts
   for insert with check (true);
 create policy "city_alerts_admin_delete" on public.city_alerts
   for delete using (public.is_admin());
+
+-- ============================================================================
+-- Migration 18: generic single-value site settings (key/value), starting
+-- with the WhatsApp number used by the "Besoin d'aide ?" floating widget —
+-- previously hardcoded to a placeholder number in WhatsAppWidget.tsx.
+-- Deliberately separate from site_stats (that table's rows are rendered as
+-- homepage "impressive number" badges — a phone number doesn't belong
+-- there). Admin-only writes, like the other post-Migration-8 tables.
+-- ============================================================================
+
+create table if not exists public.site_settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_settings enable row level security;
+
+drop policy if exists "site_settings_read" on public.site_settings;
+drop policy if exists "site_settings_admin_write" on public.site_settings;
+
+create policy "site_settings_read" on public.site_settings
+  for select using (true);
+create policy "site_settings_admin_write" on public.site_settings
+  for all using (public.is_admin()) with check (public.is_admin());
+
+alter publication supabase_realtime add table public.site_settings;
+
+insert into public.site_settings (key, value) values
+  ('whatsapp_support_number', '+33 7 58 91 17 71')
+on conflict (key) do nothing;

@@ -49,6 +49,7 @@ interface SiteContentContextValue {
   pendingCities: string[];
   partnerLogos: PartnerLogo[];
   testimonials: Testimonial[];
+  whatsappSupportNumber: string;
   loading: boolean;
   setCityGridCity: (position: number, city: string) => Promise<void>;
   setCityGridPhoto: (position: number, photoUrl: string) => Promise<void>;
@@ -77,6 +78,7 @@ interface SiteContentContextValue {
   addTestimonial: (t: { name: string; university: string; city: string; quote: string; photoUrl: string }) => Promise<void>;
   removeTestimonial: (id: string) => Promise<void>;
   moveTestimonial: (id: string, direction: "up" | "down") => Promise<void>;
+  updateWhatsappSupportNumber: (value: string) => Promise<void>;
 }
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -93,19 +95,22 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [pendingCities, setPendingCities] = useState<string[]>([]);
   const [partnerLogos, setPartnerLogos] = useState<PartnerLogo[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [whatsappSupportNumber, setWhatsappSupportNumber] = useState("");
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [cityRes, featuredRes, statsRes, heroRes, universitiesRes, citiesRes, logosRes, testimonialsRes] = await Promise.all([
-      supabase.from("city_photos").select("*").order("position", { ascending: true }),
-      supabase.from("featured_listings").select("*").order("position", { ascending: true }),
-      supabase.from("site_stats").select("*"),
-      supabase.from("hero_photos").select("*").order("position", { ascending: true }),
-      supabase.from("universities").select("name, status, city").order("name", { ascending: true }),
-      supabase.from("cities").select("name, status").order("name", { ascending: true }),
-      supabase.from("partner_logos").select("*").order("position", { ascending: true }),
-      supabase.from("site_testimonials").select("*").order("position", { ascending: true }),
-    ]);
+    const [cityRes, featuredRes, statsRes, heroRes, universitiesRes, citiesRes, logosRes, testimonialsRes, settingsRes] =
+      await Promise.all([
+        supabase.from("city_photos").select("*").order("position", { ascending: true }),
+        supabase.from("featured_listings").select("*").order("position", { ascending: true }),
+        supabase.from("site_stats").select("*"),
+        supabase.from("hero_photos").select("*").order("position", { ascending: true }),
+        supabase.from("universities").select("name, status, city").order("name", { ascending: true }),
+        supabase.from("cities").select("name, status").order("name", { ascending: true }),
+        supabase.from("partner_logos").select("*").order("position", { ascending: true }),
+        supabase.from("site_testimonials").select("*").order("position", { ascending: true }),
+        supabase.from("site_settings").select("key, value"),
+      ]);
     setCityGrid(
       (cityRes.data ?? []).map((r) => ({ id: r.id, city: r.city, photoUrl: r.photo_url ?? "", position: r.position })),
     );
@@ -132,6 +137,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         position: r.position,
       })),
     );
+    const settingsRows = (settingsRes.data ?? []) as { key: string; value: string }[];
+    setWhatsappSupportNumber(settingsRows.find((r) => r.key === "whatsapp_support_number")?.value ?? "");
     setLoading(false);
   };
 
@@ -148,6 +155,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "cities" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "partner_logos" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "site_testimonials" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_settings" }, fetchAll)
       .subscribe();
 
     return () => {
@@ -362,6 +370,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     await fetchAll();
   };
 
+  const updateWhatsappSupportNumber = async (value: string) => {
+    const { error } = await supabase
+      .from("site_settings")
+      .upsert({ key: "whatsapp_support_number", value: value.trim() });
+    if (error) throw error;
+    await fetchAll();
+  };
+
   const updateStat = async (key: string, value: string, label: string) => {
     const { error } = await supabase
       .from("site_stats")
@@ -383,6 +399,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       pendingCities,
       partnerLogos,
       testimonials,
+      whatsappSupportNumber,
       loading,
       setCityGridCity,
       setCityGridPhoto,
@@ -411,6 +428,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       addTestimonial,
       removeTestimonial,
       moveTestimonial,
+      updateWhatsappSupportNumber,
     }),
     [
       cityGrid,
@@ -424,6 +442,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       pendingCities,
       partnerLogos,
       testimonials,
+      whatsappSupportNumber,
       loading,
     ],
   );
