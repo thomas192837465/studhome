@@ -69,12 +69,19 @@ export function Header() {
           <NavLink to="/contact" className={navLinkClass}>
             Contact
           </NavLink>
-          {isAuthenticated && user.role === "Propriétaire" && (
+          {isAuthenticated && user.role === "Propriétaire" ? (
             <Link
               to="/proprietaire/tableau-de-bord"
               className="flex items-center gap-1.5 rounded-full bg-brand-navy px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-navy/90 transition-colors"
             >
               <Building2 size={15} /> Passer en mode propriétaire
+            </Link>
+          ) : (
+            <Link
+              to="/proprietaire"
+              className="flex items-center gap-1.5 rounded-full bg-brand-navy px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-navy/90 transition-colors"
+            >
+              <Building2 size={15} /> Publier votre logement
             </Link>
           )}
         </nav>
@@ -210,15 +217,14 @@ export function Header() {
 
           {isAuthenticated ? (
             <>
-              {user.role === "Propriétaire" && (
-                <Link
-                  to="/proprietaire/tableau-de-bord"
-                  onClick={closeMobileMenu}
-                  className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white"
-                >
-                  <Building2 size={15} /> Passer en mode propriétaire
-                </Link>
-              )}
+              <Link
+                to={user.role === "Propriétaire" ? "/proprietaire/tableau-de-bord" : "/proprietaire"}
+                onClick={closeMobileMenu}
+                className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white"
+              >
+                <Building2 size={15} />
+                {user.role === "Propriétaire" ? "Passer en mode propriétaire" : "Publier votre logement"}
+              </Link>
               <div className="mt-3 flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
                 <Avatar src={user.avatar} name={user.firstName} className="h-10 w-10" />
                 <div className="min-w-0">
@@ -253,6 +259,13 @@ export function Header() {
             </>
           ) : (
             <div className="mt-3 flex flex-col gap-2">
+              <Link
+                to="/proprietaire"
+                onClick={closeMobileMenu}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-brand-navy px-4 py-3 text-sm font-semibold text-white"
+              >
+                <Building2 size={15} /> Publier votre logement
+              </Link>
               <Link
                 to="/connexion"
                 onClick={closeMobileMenu}

@@ -76,7 +76,7 @@ function maskPhone(phone: string) {
 export function AccommodationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getListing, getListingsByOwner, recordView, adjustFavorite, recordUnlock } = useListings();
+  const { getListing, recordView, adjustFavorite, recordUnlock } = useListings();
   const listing = id ? getListing(id) : undefined;
   const { isAuthenticated, authLoading, user, isFavorite, toggleFavorite, isUnlocked, unlockListing, credits } = useApp();
   const { getPublishedForListing, submitReview } = useReviews();
@@ -168,7 +168,6 @@ export function AccommodationDetails() {
     ...listing.gallery.map((src) => ({ type: "photo" as const, src })),
     ...(listing.videoUrl ? [{ type: "video" as const, src: listing.videoUrl }] : []),
   ];
-  const ownerListingsCount = getListingsByOwner(listing.ownerId).filter((l) => l.status === "Publiée").length;
   const publishedReviews = getPublishedForListing(listing.id);
   const avgRating = publishedReviews.length
     ? publishedReviews.reduce((s, r) => s + r.rating, 0) / publishedReviews.length
@@ -562,12 +561,6 @@ export function AccommodationDetails() {
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-y-2 text-xs">
-              <p className="text-gray-500">
-                Membre depuis : {new Date(listing.ownerMemberSince).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
-              </p>
-              <p className="text-gray-500">Logements publiés : {ownerListingsCount}</p>
-            </div>
           </div>
 
           <div className={reportSubmitted || showReportForm ? "rounded-2xl border border-gray-100 p-5 shadow-sm text-center" : ""}>
