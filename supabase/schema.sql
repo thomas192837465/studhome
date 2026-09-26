@@ -954,11 +954,14 @@ $$;
 
 grant execute on function public.is_site_gate_enabled() to anon, authenticated;
 
+-- search_path includes "extensions" here (unlike the other functions in
+-- this file) because Supabase installs pgcrypto there by default, not into
+-- public — crypt()/gen_salt() would otherwise fail to resolve.
 create or replace function public.check_site_password(p_password text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   row_enabled boolean;
@@ -981,7 +984,7 @@ create or replace function public.set_site_password(p_password text)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public.is_admin() then
