@@ -916,3 +916,97 @@ alter publication supabase_realtime add table public.site_settings;
 insert into public.site_settings (key, value) values
   ('whatsapp_support_number', '+33 7 58 91 17 71')
 on conflict (key) do nothing;
+
+-- ============================================================================
+-- Migration 19: site-wide test-access password gate
+--
+-- Lets the whole site sit behind a single shared password while testing
+-- with students/owners — changeable or removable from AdminSettings at any
+-- time. The password itself is never exposed to the client: the table has
+-- no SELECT policy at all (not even for admins), and it's reachable only
+-- through the SECURITY DEFINER functions below, which return a plain
+-- boolean rather than the stored hash.
+-- ============================================================================
+
+create extension if not exists pgcrypto;
+
+create table if not exists public.site_access (
+  id boolean primary key default true check (id),
+  password_hash text,
+  enabled boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.site_access (id, enabled) values (true, false) on conflict (id) do nothing;
+
+alter table public.site_access enable row level security;
+-- No policies at all, by design — see note above.
+
+create or replace function public.is_site_gate_enabled()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select coalesce(enabled, false) from public.site_access where id = true;
+$$;
+
+grant execute on function public.is_site_gate_enabled() to anon, authenticated;
+
+create or replace function public.check_site_password(p_password text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  row_enabled boolean;
+  row_hash text;
+begin
+  select enabled, password_hash into row_enabled, row_hash from public.site_access where id = true;
+  if not coalesce(row_enabled, false) then
+    return true;
+  end if;
+  if row_hash is null then
+    return true;
+  end if;
+  return crypt(p_password, row_hash) = row_hash;
+end;
+$$;
+
+grant execute on function public.check_site_password(text) to anon, authenticated;
+
+create or replace function public.set_site_password(p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+  update public.site_access
+  set password_hash = crypt(p_password, gen_salt('bf')), enabled = true, updated_at = now()
+  where id = true;
+end;
+$$;
+
+grant execute on function public.set_site_password(text) to authenticated;
+
+create or replace function public.disable_site_gate()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+  update public.site_access set enabled = false where id = true;
+end;
+$$;
+
+grant execute on function public.disable_site_gate() to authenticated;
