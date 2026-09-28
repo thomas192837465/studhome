@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
-import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, GraduationCap, MapPin, Check, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Trash2, ArrowUp, ArrowDown, Star, UploadCloud, Plus, GraduationCap, MapPin, Check, X, Lock } from "lucide-react";
 import { useSiteContent, type SiteStat } from "../../context/SiteContentContext";
 import { useListings } from "../../context/ListingsContext";
 import { resizeImageFile } from "../../lib/resizeImage";
 import { uploadCityPhoto, uploadHeroPhoto, uploadPartnerLogo, uploadTestimonialPhoto } from "../../lib/uploadPhoto";
 import { MfaSecuritySection } from "../../components/MfaSecuritySection";
+import { isSiteGateEnabled, setSitePassword, disableSiteGate } from "../../lib/siteGate";
 
 const GRID_SIZE = 10;
 
@@ -162,6 +163,16 @@ export function AdminSettings() {
         <h2 className="font-semibold text-brand-navy mb-1">Mon compte</h2>
         <p className="text-sm text-gray-500 mb-4">Sécurisez votre propre accès administrateur.</p>
         <MfaSecuritySection />
+      </section>
+
+      <section className="max-w-lg">
+        <h2 className="font-semibold text-brand-navy mb-1">Accès au site (mode test)</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Protège l'ensemble du site derrière un mot de passe partagé — utile pour faire tester le site à des
+          étudiants/propriétaires avant l'ouverture publique. Une fois entré une fois, un visiteur n'a pas besoin de
+          le retaper sur cet appareil.
+        </p>
+        <SiteAccessGateEditor />
       </section>
 
       <section className="max-w-lg">
@@ -779,6 +790,84 @@ function StatEditor({
         </button>
       )}
       {saved && <p className="mt-2 text-center text-xs font-medium text-brand-green">Enregistré</p>}
+    </div>
+  );
+}
+
+function SiteAccessGateEditor() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [disabling, setDisabling] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    isSiteGateEnabled().then(setEnabled);
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+    setError("");
+    setSaving(true);
+    try {
+      await setSitePassword(password);
+      setPassword("");
+      setEnabled(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError("Impossible d'enregistrer le mot de passe.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    setDisabling(true);
+    try {
+      await disableSiteGate();
+      setEnabled(false);
+    } finally {
+      setDisabling(false);
+    }
+  };
+
+  return (
+    <div>
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-medium">
+        <Lock size={12} className={enabled ? "text-brand-orange" : "text-gray-400"} />
+        {enabled === null ? "Vérification..." : enabled ? "Actif — un mot de passe est demandé" : "Inactif — le site est en accès libre"}
+      </p>
+      <form onSubmit={handleSave} className="flex gap-2 max-w-xs">
+        <input
+          type="text"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={enabled ? "Nouveau mot de passe" : "Définir un mot de passe"}
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
+        />
+        <button
+          type="submit"
+          disabled={saving || !password.trim()}
+          className="shrink-0 rounded-lg bg-brand-blue px-4 py-2 text-xs font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
+        >
+          {saving ? "..." : enabled ? "Changer" : "Activer"}
+        </button>
+      </form>
+      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+      {saved && <p className="mt-2 text-xs font-medium text-brand-green">Mot de passe enregistré</p>}
+      {enabled && (
+        <button
+          type="button"
+          onClick={handleDisable}
+          disabled={disabling}
+          className="mt-3 text-xs font-semibold text-red-500 hover:underline disabled:opacity-60"
+        >
+          {disabling ? "Désactivation..." : "Désactiver le mot de passe (accès libre)"}
+        </button>
+      )}
     </div>
   );
 }

@@ -10,25 +10,28 @@ import { ListingsProvider } from './context/ListingsContext.tsx'
 import { ReviewsProvider } from './context/ReviewsContext.tsx'
 import { SignalementsProvider } from './context/SignalementsContext.tsx'
 import { SiteContentProvider } from './context/SiteContentContext.tsx'
+import { SiteGate } from './components/SiteGate.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <ListingsProvider>
-        <ReviewsProvider>
-          <SignalementsProvider>
-            <SiteContentProvider>
-              <AppProvider>
-                <OwnerProvider>
-                  <AdminPortalProvider>
-                    <App />
-                  </AdminPortalProvider>
-                </OwnerProvider>
-              </AppProvider>
-            </SiteContentProvider>
-          </SignalementsProvider>
-        </ReviewsProvider>
-      </ListingsProvider>
-    </BrowserRouter>
+    <SiteGate>
+      <BrowserRouter>
+        <ListingsProvider>
+          <ReviewsProvider>
+            <SignalementsProvider>
+              <SiteContentProvider>
+                <AppProvider>
+                  <OwnerProvider>
+                    <AdminPortalProvider>
+                      <App />
+                    </AdminPortalProvider>
+                  </OwnerProvider>
+                </AppProvider>
+              </SiteContentProvider>
+            </SignalementsProvider>
+          </ReviewsProvider>
+        </ListingsProvider>
+      </BrowserRouter>
+    </SiteGate>
   </StrictMode>,
 )
