@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ShieldCheck, Mail } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
+import { PhoneInput } from "./PhoneInput";
 import { MfaChallengeForm } from "./MfaChallengeForm";
 import type { TwoFactorMethod } from "../lib/twoFactor";
 
@@ -26,10 +27,7 @@ export function MfaEnrollForm({
   const [method, setMethod] = useState<TwoFactorMethod>("sms");
   const [phone, setPhone] = useState(initialPhone);
 
-  // Twilio's WhatsApp API requires E.164 (+237...) — assume Cameroon if the
-  // user typed local digits without the country code.
-  const normalizedPhone = phone.trim().startsWith("+") ? phone.replace(/\s+/g, "") : `+237${phone.replace(/\s+/g, "")}`;
-  const identifier = method === "email" ? email : normalizedPhone;
+  const identifier = method === "email" ? email : phone;
 
   if (step === "code") {
     return <MfaChallengeForm method={method} identifier={identifier} onVerified={() => onVerified(method, identifier)} />;
@@ -91,19 +89,13 @@ export function MfaEnrollForm({
         >
           <label className="block">
             <span className="mb-1.5 block text-sm text-gray-500">Numéro WhatsApp</span>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              type="tel"
-              placeholder="+237 6XX XXX XXX"
-              required
-              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/30"
-            />
+            <PhoneInput value={phone} onChange={setPhone} placeholder="6XX XXX XXX" />
           </label>
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+              disabled={!phone}
+              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
             >
               Envoyer le code
             </button>

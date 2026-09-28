@@ -3,8 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { Home, User, Mail, Lock, Eye, EyeOff, Check, ShieldCheck, PartyPopper } from "lucide-react";
 import { OwnerPublicHeader } from "./OwnerPublicHeader";
 import { Footer } from "../../components/Footer";
-import { CameroonFlag } from "../../components/CameroonFlag";
 import { WhatsAppIcon } from "../../components/WhatsAppIcon";
+import { PhoneInput } from "../../components/PhoneInput";
 import { MfaChallengeForm } from "../../components/MfaChallengeForm";
 import { useOwner } from "../../context/OwnerContext";
 import type { TwoFactorMethod } from "../../lib/twoFactor";
@@ -24,9 +24,7 @@ export function OwnerSignup() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  // Twilio's WhatsApp API requires E.164 (+237...); the input only collects
-  // the local digits, with "+237" shown as a fixed prefix label beside it.
-  const identifier = method === "sms" ? `+237${phone.replace(/\s+/g, "")}` : email;
+  const identifier = method === "sms" ? phone : email;
 
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,18 +136,7 @@ export function OwnerSignup() {
                 {method === "sms" ? (
                   <label className="block">
                     <span className="mb-1.5 block text-sm font-medium text-brand-navy">Numéro WhatsApp</span>
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-3 focus-within:ring-2 focus-within:ring-brand-blue/30">
-                      <CameroonFlag className="h-3.5 w-5 rounded-sm shrink-0" />
-                      <span className="text-sm text-gray-500">+237</span>
-                      <input
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        type="tel"
-                        placeholder="6XX XXX XXX"
-                        required
-                        className="w-full text-sm focus:outline-none"
-                      />
-                    </div>
+                    <PhoneInput value={phone} onChange={setPhone} placeholder="6XX XXX XXX" />
                     <span className="mt-1.5 block text-xs text-gray-400">
                       Nous utiliserons ce numéro pour vous envoyer un code de vérification.
                     </span>
@@ -212,6 +199,7 @@ export function OwnerSignup() {
 
                 <button
                   type="submit"
+                  disabled={method === "sms" && !phone}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue py-3 font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
                 >
                   Continuer →
