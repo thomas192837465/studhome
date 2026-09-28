@@ -128,7 +128,7 @@ export function Home() {
           alt="Chambre étudiante"
           className="absolute inset-0 h-full w-full object-cover animate-[heroFade_0.6s_ease-in-out]"
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,white_0%,white_18%,rgba(255,255,255,0.55)_32%,rgba(255,255,255,0)_48%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,white_0%,white_25%,rgba(255,255,255,0.65)_40%,rgba(255,255,255,0)_60%)]" />
         <CameroonFlag className="absolute top-6 right-6 lg:top-8 lg:right-10 h-8 w-12 rounded-md shadow-lg overflow-hidden" />
 
         <div className="relative mx-auto max-w-7xl px-6 lg:px-10 pt-16 pb-16 sm:pt-20">
