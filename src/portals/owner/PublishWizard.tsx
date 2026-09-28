@@ -858,6 +858,13 @@ export function PublishWizard() {
                 <p className="mt-1 text-xl font-bold text-brand-blue">
                   {draft.loyer || "0"} FCFA <span className="text-sm font-normal text-gray-500">/ an</span>
                 </p>
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-brand-blue-light px-4 py-3">
+                  <ShieldCheck size={18} className="mt-0.5 shrink-0 text-brand-blue" />
+                  <p className="text-xs text-gray-600">
+                    Les loyers affichés sont les tarifs réels fixés par les bailleurs. StudHome ne prélève aucune
+                    commission.
+                  </p>
+                </div>
                 <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
                   <MapPin size={14} /> {[draft.ville, draft.quartier].filter(Boolean).join(", ") || "Ville"}
                 </p>
